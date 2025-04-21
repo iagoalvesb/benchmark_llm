@@ -1,9 +1,11 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from datasets import load_dataset, concatenate_datasets
+from huggingface_hub import list_datasets
 import torch
 import argparse
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
 import re
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
@@ -91,7 +93,19 @@ def map_answer(example):
     return example
 
 
+
+# check if the dataset already exists in the hub
+possible_datasets = list_datasets(search=args.output_path)
+dataset_exists = any(ds.id == args.output_path for ds in possible_datasets)
+
+
 all_datasets = []
+if dataset_exists:
+    original_dataset = load_dataset(args.output_path, split='train')
+    all_datasets.append(original_dataset)
+    print(f"Dataset already exists in the hub: {args.output_path}. Appending new answers.")
+
+
 for model_path in args.model_path:
     print(f"\n** RUNNING MODEL: {model_path}")
     model_name = model_path.split("/")[-1]
@@ -113,6 +127,7 @@ for model_path in args.model_path:
     all_datasets.append(dataset)
 
 full_dataset = concatenate_datasets(all_datasets)
+
 full_dataset.push_to_hub(args.output_path)
 
 print(F"\n\n**SAVED AT: {args.output_path}")
