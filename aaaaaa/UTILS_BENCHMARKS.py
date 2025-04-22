@@ -131,6 +131,75 @@ class portuguese_hate_speech:
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
+class faquad:
+    def __init__(self):
+        self.dataset_path = "ruanchaves/faquad-nli"
+        self.subset = None
+        self.label_column = "label"
+        self.answer_pattern = "yes_no"
+        self.answer_type = "category"
+
+
+    def get_prompt_informations(self, example):
+        prompt_informations = {}
+        prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
+        prompt_informations['user_message'] = f"Pergunta: {example['question']}\n\nResposta: {example['answer']}\nA resposta dada satisfaz à pergunta? Responda com Sim ou Não."""
+
+        assistant_message_positive = "Resposta: Sim, a resposta dada satisfaz à pergunta."
+        assistant_message_negative = "Resposta: Não, a resposta dada não satisfaz à pergunta."
+        prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == 1 else assistant_message_negative
+        
+        prompt_informations['assistant_message_without_answer'] = "Resposta: "
+        return prompt_informations
+
+class tweetsentbr:
+    def __init__(self):
+        self.dataset_path = "EdwardSJ151/tweetsentbr_fewshot_ptlabel"
+        self.subset = None
+        self.label_column = "label"
+        self.answer_pattern = "multiple_choice_full_word"
+        self.answer_type = "category"   
+
+    def get_prompt_informations(self, example):
+        prompt_informations = {}
+        prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
+        prompt_informations['user_message'] = f"Comentário: {example['sentence']}.\nQual é o tom do comentário acima? Responda com apenas uma das seguintes opções: Positivo, Negativo ou Neutro."""
+
+        label_map = {
+            "Positivo": "Resposta: Positivo",
+            "Negativo": "Resposta: Negativo",
+            "Neutro": "Resposta: Neutro"
+        }
+
+        prompt_informations['assistant_message_with_answer'] = label_map.get(example['label']) 
+        
+        prompt_informations['assistant_message_without_answer'] = "Resposta: "
+        return prompt_informations
+    
+
+class oab:
+    def __init__(self):
+        self.dataset_path = "eduagarcia/oab_exams"
+        self.subset = None
+        self.label_column = "answerKey"
+        self.answer_pattern = "multiple_choice"
+        self.answer_type = "category"
+
+
+    def get_prompt_informations(self, example):
+        prompt_informations = {}
+        prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
+
+        num_alternatives_example = len(example['choices']['text'])
+        example_alternatives = [f"({chr(65 + asc_letter)}): {example['choices']['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
+        example_alternatives = "\n".join(example_alternatives)
+        
+        prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
+
+        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
+        
+        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
+        return prompt_informations
 
 
 BENCHMARKS_INFORMATIONS = {
@@ -140,4 +209,7 @@ BENCHMARKS_INFORMATIONS = {
     "enem": enem(),
     "hatebr": hatebr(),
     "portuguese_hate_speech": portuguese_hate_speech(),
+    "faquad": faquad(),
+    "tweetsentbr": tweetsentbr(),
+    "oab": oab(),
     }

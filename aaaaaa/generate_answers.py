@@ -63,6 +63,13 @@ def parse_multiple_choice(text):
     text = text.strip()[0].upper()
     return text[0]
 
+def parse_multiple_choice_full_word(text):
+    # Extract the first word of the answer
+    stripped_text = text.strip()
+    words = stripped_text.split()
+    first_word = words[0].capitalize() # Capitalize the first word just in case
+    return first_word
+
 def parse_continue_value(text):
     # Extract the first character of the answer
     text = text.strip()
@@ -80,6 +87,8 @@ def parse_answer(example):
         return parse_yes_no(example['model_answer'])
     elif benchmark.answer_pattern == "multiple_choice":
         return parse_multiple_choice(example['model_answer'])
+    elif benchmark.answer_pattern == "multiple_choice_full_word":
+        return parse_multiple_choice_full_word(example['model_answer'])
     elif benchmark.answer_pattern == "continue_value":
         return parse_continue_value(example['model_answer'])
     else:

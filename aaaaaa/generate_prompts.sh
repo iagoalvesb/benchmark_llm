@@ -29,6 +29,9 @@ BENCHMARK_NAMES=(
   "enem"
   "hatebr"
   "portuguese_hate_speech"
+  "faquad"
+  "tweetsentbr"
+  "oab"
 )
 
 # -------------------------
