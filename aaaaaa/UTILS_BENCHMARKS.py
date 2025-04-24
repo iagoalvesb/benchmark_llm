@@ -2,6 +2,7 @@ class assin2rte:
     def __init__(self):
         self.dataset_path = "eduagarcia/portuguese_benchmark"
         self.subset = "assin2-rte"
+        self.important_columns = ["idx", "sentence1", "sentence2", "label"]
         self.label_column = "label"
         self.answer_pattern = "yes_no"
         self.answer_type = "category"
@@ -24,6 +25,7 @@ class assin2sts:
     def __init__(self):
         self.dataset_path = "eduagarcia/portuguese_benchmark"
         self.subset = "assin2-sts"
+        self.important_columns = ["idx", "sentence1", "sentence2", "label"]
         self.label_column = "label"
         self.answer_pattern = "continue_value"
         self.answer_type = "continue"
@@ -42,6 +44,7 @@ class bluex:
     def __init__(self):
         self.dataset_path = "eduagarcia-temp/BLUEX_without_images"
         self.subset = None
+        self.important_columns = ["question", "choices", "answerKey"]
         self.label_column = "answerKey"
         self.answer_pattern = "multiple_choice"
         self.answer_type = "category"
@@ -67,6 +70,7 @@ class enem:
     def __init__(self):
         self.dataset_path = "eduagarcia/enem_challenge"
         self.subset = None
+        self.important_columns = ["question", "choices", "answerKey"]
         self.label_column = "answerKey"
         self.answer_pattern = "multiple_choice"
         self.answer_type = "category"
@@ -92,6 +96,7 @@ class hatebr:
     def __init__(self):
         self.dataset_path = "eduagarcia/portuguese_benchmark"
         self.subset = "HateBR_offensive_binary"
+        self.important_columns = ["sentence", "label"]
         self.label_column = "label"
         self.answer_pattern = "yes_no"
         self.answer_type = "category"
@@ -114,6 +119,7 @@ class portuguese_hate_speech:
     def __init__(self):
         self.dataset_path = "eduagarcia/portuguese_benchmark"
         self.subset = "Portuguese_Hate_Speech_binary"
+        self.important_columns = ["sentence", "label"]
         self.label_column = "label"
         self.answer_pattern = "yes_no"
         self.answer_type = "category"
@@ -135,6 +141,7 @@ class faquad:
     def __init__(self):
         self.dataset_path = "ruanchaves/faquad-nli"
         self.subset = None
+        self.important_columns = ["question", "answer", "label"]
         self.label_column = "label"
         self.answer_pattern = "yes_no"
         self.answer_type = "category"
@@ -156,6 +163,7 @@ class tweetsentbr:
     def __init__(self):
         self.dataset_path = "EdwardSJ151/tweetsentbr_fewshot_ptlabel"
         self.subset = None
+        self.important_columns = ["sentence", "label"]
         self.label_column = "label"
         self.answer_pattern = "multiple_choice_full_word"
         self.answer_type = "category"   
@@ -181,6 +189,7 @@ class oab:
     def __init__(self):
         self.dataset_path = "eduagarcia/oab_exams"
         self.subset = None
+        self.important_columns = ["question", "choices", "answerKey"]
         self.label_column = "answerKey"
         self.answer_pattern = "multiple_choice"
         self.answer_type = "category"
