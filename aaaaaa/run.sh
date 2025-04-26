@@ -5,8 +5,8 @@ set -e  # Exit immediately if a command exits with a non-zero status.
 # Configuration Parameters
 # -------------------------
 
-N_SHOTS=5
-N_EXPERIMENTS=3
+NUM_SHOTS=5
+NUM_EXPERIMENTS=3
 TOKENIZER_PATH="Qwen/Qwen2.5-0.5B-Instruct"
 MODEL_ID="qwen2.5"
 
@@ -54,8 +54,8 @@ BENCHMARK_NAMES=(
 
 echo "Generating prompts for benchmarks: ${BENCHMARK_NAMES[*]}"
 python get_bench_prompts.py \
-  --n_shots "${N_SHOTS}" \
-  --n_experiments "${N_EXPERIMENTS}" \
+  --n_shots "${NUM_EXPERIMENTS}" \
+  --n_experiments "${NUM_EXPERIMENTS}" \
   --tokenizer_path "${TOKENIZER_PATH}" \
   --benchmark_names "${BENCHMARK_NAMES[@]}" \
   --save_path_prompts "${PROMPTS_PATH}"
