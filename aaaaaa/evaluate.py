@@ -1,8 +1,8 @@
-from datasets import load_dataset, Dataset
+from datasets import load_dataset, Dataset, concatenate_datasets
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 from scipy.stats import pearsonr
-
+from huggingface_hub import list_datasets
 import argparse
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
 
@@ -17,13 +17,19 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--output_evaluation_path",
+    "--eval_path",
     type=str,
     required=True,
     help="Huggingface path to save final metrics"
 )
 
 args = parser.parse_args()
+
+
+eval_dataset = list_datasets(search=args.eval_path)
+eval_dataset_exists = any(ds.id == args.eval_path for ds in eval_dataset)
+if eval_dataset_exists:
+    eval_dataset = load_dataset(args.eval_path, split='train')
 
 dataset = load_dataset(args.answers_path, split='train')
 df = dataset.to_pandas()
@@ -32,6 +38,10 @@ metrics_list = []
 
 for model_name in df['model_name'].unique():
     df_model = df[df['model_name'] == model_name]
+    # para não ter duplicatas, vamos remover os modelos que rodamos o eval novamente no dataset de eval
+    if eval_dataset_exists:
+        eval_dataset = eval_dataset.filter(lambda x: x['model_name'] != model_name)
+
     for benchmark_name in df_model['benchmark'].unique():
         df_model_benchmark = df_model[df_model['benchmark'] == benchmark_name]
         y_true = df_model_benchmark['label'].values
@@ -77,6 +87,12 @@ for model_name in df['model_name'].unique():
 results_df = pd.DataFrame(metrics_list)
 print(results_df)
 results_dataset = Dataset.from_pandas(results_df)
-results_dataset.push_to_hub(args.output_evaluation_path)
+if eval_dataset_exists:
+    # remove the models that are already in the eval dataset
+    results_dataset = concatenate_datasets([eval_dataset, results_dataset])
 
-print(f"\n\n** EVALUATION RESULTS SAVED AT: {args.output_evaluation_path}")
+
+
+results_dataset.push_to_hub(args.eval_path)
+
+print(f"\n\n** EVALUATION RESULTS SAVED AT: {args.eval_path}")

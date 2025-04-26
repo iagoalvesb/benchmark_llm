@@ -16,7 +16,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--output_path",
+    "--answers_path",
     type=str,
     required=True,
     help="Full Huggingface path to save models outputs"
@@ -107,8 +107,8 @@ def map_answer(example):
 
 
 # check if the dataset already exists in the hub
-possible_datasets = list_datasets(search=args.output_path)
-dataset_exists = any(ds.id == args.output_path for ds in possible_datasets)
+possible_datasets = list_datasets(search=args.answers_path)
+dataset_exists = any(ds.id == args.answers_path for ds in possible_datasets)
 
 
 new_datasets = []
@@ -135,7 +135,7 @@ for model_path in args.model_path:
 
 all_datasets = []
 if dataset_exists:
-    original_dataset = load_dataset(args.output_path, split='train')
+    original_dataset = load_dataset(args.answers_path, split='train')
     
     ran_benchmarks = set()
     ran_models = set()

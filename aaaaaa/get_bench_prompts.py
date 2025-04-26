@@ -32,7 +32,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--save_path_prompts",
+    "--prompts_path",
     type=str,
     required=True,
     help="Huggingface repository to save (OBS: not the full path to save)"
@@ -149,4 +149,4 @@ df = df[column_order]
 dataset = Dataset.from_pandas(df)
 
 
-dataset.push_to_hub(args.save_path_prompts)
+dataset.push_to_hub(args.prompts_path)
