@@ -161,6 +161,6 @@ full_dataset = full_dataset.map(
     with_indices=True
 )
 
-full_dataset.push_to_hub(args.output_path)
+full_dataset.push_to_hub(args.answers_path)
 
-print(F"\n\n**SAVED AT: {args.output_path}")
+print(F"\n\n**SAVED AT: {args.answers_path}")
