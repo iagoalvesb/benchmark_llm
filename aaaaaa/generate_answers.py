@@ -9,7 +9,7 @@ import re
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    "--dataset_path",
+    "--prompts_path",
     type=str,
     required=True,
     help="Huggingface path to the prompt dataset [dataset must be in the format aquired by generate_prompts.sh]"
@@ -83,16 +83,19 @@ def parse_answer(example):
     # Extract the answer in the correct format (e.g. anser "Resposta: E" to "E")
     benchmark_name = example['benchmark']
     benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
-    if benchmark.answer_pattern == "yes_no":
-        return parse_yes_no(example['model_answer'])
-    elif benchmark.answer_pattern == "multiple_choice":
-        return parse_multiple_choice(example['model_answer'])
-    elif benchmark.answer_pattern == "multiple_choice_full_word":
-        return parse_multiple_choice_full_word(example['model_answer'])
-    elif benchmark.answer_pattern == "continue_value":
-        return parse_continue_value(example['model_answer'])
-    else:
-        raise ValueError(f"Unknown answer pattern: {benchmark.answer_pattern}")
+    try:
+        if benchmark.answer_pattern == "yes_no":
+            return parse_yes_no(example['model_answer'])
+        elif benchmark.answer_pattern == "multiple_choice":
+            return parse_multiple_choice(example['model_answer'])
+        elif benchmark.answer_pattern == "multiple_choice_full_word":
+            return parse_multiple_choice_full_word(example['model_answer'])
+        elif benchmark.answer_pattern == "continue_value":
+            return parse_continue_value(example['model_answer'])
+        else:
+            raise ValueError(f"Unknown answer pattern: {benchmark.answer_pattern}")
+    except:
+        return None
 
 
 def map_answer(example):
@@ -112,7 +115,7 @@ new_datasets = []
 for model_path in args.model_path:
     print(f"\n** RUNNING MODEL: {model_path}")
     model_name = model_path.split("/")[-1]
-    dataset = load_dataset(args.dataset_path, split='train')
+    dataset = load_dataset(args.prompts_path, split='train')
     dataset = dataset.map(lambda example: {"model_name": model_name})
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -124,6 +127,7 @@ for model_path in args.model_path:
                             quantization_config=quantization_config,
                             low_cpu_mem_usage=True,
                             device_map=device,
+                            # attn_implementation = "flash_attention_2",
                         )
 
     dataset = dataset.map(map_answer, desc=f"{model_path.split('/')[1]}")

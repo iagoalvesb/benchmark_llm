@@ -32,7 +32,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--output_hub_repo",
+    "--save_path_prompts",
     type=str,
     required=True,
     help="Huggingface repository to save (OBS: not the full path to save)"
@@ -97,7 +97,7 @@ for benchmark_name in args.benchmark_names:
     else:
         dataset = dataset.filter(lambda x: all((x[col] is not None) and (x[col] != "") for col in x))
         
-    # dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
+    dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
     dataset = dataset.map(lambda example, idx: {"idx": int(idx)}, with_indices=True, desc="Adding index")
 
 
@@ -149,10 +149,4 @@ df = df[column_order]
 dataset = Dataset.from_pandas(df)
 
 
-
-model_name = args.tokenizer_path.split("/")[-1]
-dataset_name = f'prompts_{model_name[:3]}_{args.n_shots}shot_{args.n_experiments}exp'
-dataset_output_path = f"{args.output_hub_repo}/{dataset_name}"
-
-dataset.push_to_hub(dataset_output_path)
-print(f'\n\n** DATASET SAVED AT: {dataset_output_path}')
+dataset.push_to_hub(args.save_path_prompts)

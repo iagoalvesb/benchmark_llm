@@ -20,7 +20,27 @@ set -e  # Exit immediately if a command exits with a non-zero status.
 N_SHOTS=5
 N_EXPERIMENTS=3
 TOKENIZER_PATH="Qwen/Qwen2.5-3B-Instruct"
-OUTPUT_HUB_REPO="pt-eval"
+MODEL_ID="qwen2.5"
+
+# -------------------------
+# Path Definitions
+# -------------------------
+
+PROMPTS_PATH="pt-eval/prompts_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+ANSWERS_PATH="pt-eval/answers_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+EVALUATION_PATH="pt-eval/eval_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+
+MODEL_PATHS=(
+  "Qwen/Qwen2.5-0.5B-Instruct"
+  # "Qwen/Qwen2.5-1.5B-Instruct"
+  # "Qwen/Qwen2.5-3B-Instruct"
+)
+
+
+# -------------------------
+# Benchmarks to run
+# -------------------------
+
 
 BENCHMARK_NAMES=(
   "assin2rte"
@@ -34,6 +54,8 @@ BENCHMARK_NAMES=(
   "oab"
 )
 
+
+
 # -------------------------
 # Generating Prompts
 # -------------------------
@@ -44,6 +66,6 @@ python get_bench_prompts.py \
   --n_experiments "${N_EXPERIMENTS}" \
   --tokenizer_path "${TOKENIZER_PATH}" \
   --benchmark_names "${BENCHMARK_NAMES[@]}" \
-  --output_hub_repo "${OUTPUT_HUB_REPO}"
+  --save_path_prompts "${PROMPTS_PATH}"
 
-echo "Prompt generation completed. Outputs saved to '${OUTPUT_HUB_REPO}'"
+echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"

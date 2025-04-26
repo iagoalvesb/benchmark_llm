@@ -15,9 +15,9 @@ MODEL_ID="Qwe"
 # Path Definitions
 # -------------------------
 
-DATASET_PATH="pt-eval/prompts_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
-OUTPUT_ANSWERS_PATH="pt-eval/answers_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
-OUTPUT_EVALUATION_PATH="pt-eval/eval_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+PROMPTS_PATH="pt-eval/prompts_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+ANSWERS_PATH="pt-eval/answers_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+EVALUATION_PATH="pt-eval/eval_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 
 MODEL_PATHS=(
   "Qwen/Qwen2.5-0.5B-Instruct"
@@ -31,8 +31,8 @@ MODEL_PATHS=(
 
 echo "Running answer generation..."
 python generate_answers.py \
-  --dataset_path "${DATASET_PATH}" \
-  --output_path "${OUTPUT_ANSWERS_PATH}" \
+  --prompts_path "${PROMPTS_PATH}" \
+  --output_path "${ANSWERS_PATH}" \
   --model_path "${MODEL_PATHS[@]}"
 
 # -------------------------
@@ -41,7 +41,7 @@ python generate_answers.py \
 
 echo "Evaluating generated answers..."
 python evaluate.py \
-  --dataset_path "${OUTPUT_ANSWERS_PATH}" \
-  --output_evaluation_path "${OUTPUT_EVALUATION_PATH}"
+  --answers_path "${ANSWERS_PATH}" \
+  --output_evaluation_path "${EVALUATION_PATH}"
 
-echo "Evaluation completed. Results saved to ${OUTPUT_EVALUATION_PATH}"
+echo "Evaluation completed. Results saved to ${EVALUATION_PATH}"

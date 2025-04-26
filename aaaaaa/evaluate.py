@@ -10,7 +10,7 @@ from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    "--dataset_path",
+    "--answers_path",
     type=str,
     required=True,
     help="Dataset path with the label and the model answers"
@@ -25,7 +25,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-dataset = load_dataset(args.dataset_path, split='train')
+dataset = load_dataset(args.answers_path, split='train')
 df = dataset.to_pandas()
 
 metrics_list = []
@@ -36,9 +36,14 @@ for model_name in df['model_name'].unique():
         df_model_benchmark = df_model[df_model['benchmark'] == benchmark_name]
         y_true = df_model_benchmark['label'].values
         y_pred = df_model_benchmark['parsed_model_answer'].values
-        benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
-        
 
+        
+        # Remove None values from y_true and y_pred
+        mask = [True if p is not None else False for p in y_pred]
+        y_pred = y_pred[mask]
+        non_parsed_pct = mask.count(False) / len(mask)
+
+        benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
         
         # Calculate various metrics
         if benchmark.answer_type == "category":
@@ -65,6 +70,7 @@ for model_name in df['model_name'].unique():
             'recall': recall,
             'f1_score': f1,
             'pearson_correlation': corr,
+            'non_parsed': non_parsed_pct,
         })
 
 # Convert list of dicts to a DataFrame for easy viewing
