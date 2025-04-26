@@ -86,7 +86,10 @@ all_benchmarks = []
 for benchmark_name in args.benchmark_names:
     benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
     dataset = load_dataset(benchmark.dataset_path, benchmark.subset)
-    dataset = dataset['test'] if 'test' in dataset.keys() else dataset['train']
+    if hasattr(benchmark, 'split'):
+        dataset = dataset[benchmark.split]
+    else:
+        dataset = dataset['test'] if 'test' in dataset.keys() else dataset['train']
 
     # REMOVER QUALQUER LINHA QUE TENHA NAN
     if hasattr(benchmark, 'important_columns'):

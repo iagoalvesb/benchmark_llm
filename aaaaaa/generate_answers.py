@@ -108,13 +108,7 @@ possible_datasets = list_datasets(search=args.output_path)
 dataset_exists = any(ds.id == args.output_path for ds in possible_datasets)
 
 
-all_datasets = []
-if dataset_exists:
-    original_dataset = load_dataset(args.output_path, split='train')
-    all_datasets.append(original_dataset)
-    print(f"Dataset already exists in the hub: {args.output_path}. Appending new answers.")
-
-
+new_datasets = []
 for model_path in args.model_path:
     print(f"\n** RUNNING MODEL: {model_path}")
     model_name = model_path.split("/")[-1]
@@ -133,9 +127,35 @@ for model_path in args.model_path:
                         )
 
     dataset = dataset.map(map_answer, desc=f"{model_path.split('/')[1]}")
-    all_datasets.append(dataset)
+    new_datasets.append(dataset)
+
+all_datasets = []
+if dataset_exists:
+    original_dataset = load_dataset(args.output_path, split='train')
+    
+    ran_benchmarks = set()
+    ran_models = set()
+    for ds in new_datasets:
+        ran_benchmarks.update(set(ds['benchmark']))
+        ran_models.update(set(ds['model_name']))
+    
+    filtered_dataset = original_dataset.filter(
+        lambda x: not (
+            x['benchmark'] in ran_benchmarks and 
+            x['model_name'] in ran_models
+        )
+    )
+    all_datasets.append(filtered_dataset)
+
+all_datasets.extend(new_datasets)
 
 full_dataset = concatenate_datasets(all_datasets)
+
+# gambiarra para manter os ids consistentes
+full_dataset = full_dataset.map(
+    lambda example, idx: {**example, "id": idx + 1},
+    with_indices=True
+)
 
 full_dataset.push_to_hub(args.output_path)
 
