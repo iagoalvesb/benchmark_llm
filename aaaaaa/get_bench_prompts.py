@@ -97,7 +97,7 @@ for benchmark_name in args.benchmark_names:
     else:
         dataset = dataset.filter(lambda x: all((x[col] is not None) and (x[col] != "") for col in x))
         
-    dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
+    # dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
     dataset = dataset.map(lambda example, idx: {"idx": int(idx)}, with_indices=True, desc="Adding index")
 
 
