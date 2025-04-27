@@ -1,22 +1,21 @@
 import argparse
 import pandas as pd
 import warnings
-from huggingface_hub import HfApi
-from datasets import load_dataset
+from huggingface_hub import HfApi, list_datasets
+from datasets import load_dataset, Dataset, concatenate_datasets
 from utils import BENCHMARK_TO_AREA, BENCHMARK_TO_COLUMN, BENCHMARK_TO_METRIC, MODEL_PARAMS, add_additional_info
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--benchmarks-file', required=True)
-    parser.add_argument('--output-file',     default='leaderboard.csv')
+    parser.add_argument('--benchmarks-file', required=True,
+                        help="HuggingFace dataset path containing benchmark results")
+    parser.add_argument('--output-repo', required=True,
+                        help="HuggingFace repo name to save the leaderboard")
+    parser.add_argument('--overwrite', action='store_true',
+                        help="If True, overwrite existing model results; otherwise skip")
     return parser.parse_args()
 
 def compute_score(row, benchmark):
-    """
-    Compute the score for a benchmark row using the appropriate metrics defined in BENCHMARK_TO_METRIC.
-    If multiple metrics are specified, return their mean.
-    Missing or null values are ignored; if none are valid, return 0.0.
-    """
     metrics = BENCHMARK_TO_METRIC.get(benchmark, ['accuracy'])
     
     for metric in metrics:
@@ -50,10 +49,25 @@ if __name__ == "__main__":
         benchmark_exists[bench] = has_scores
     
     all_results = []
-    for model_name in df['model_name'].unique():
+    model_names = df['model_name'].unique()
+    
+    api = HfApi()
+    possible_datasets = list_datasets(search=args.output_repo)
+    dataset_exists = any(ds.id == args.output_repo for ds in possible_datasets)
+    
+    models_to_skip = set()
+    if dataset_exists and not args.overwrite:
+        existing_dataset = load_dataset(args.output_repo, split='train')
+        models_to_skip = set(existing_dataset['Modelo'])
+    
+    for model_name in model_names:
+        if model_name in models_to_skip:
+            print(f"Pulando o modelo {model_name} (já existe, overwrite está como False)") # pula modelo se já existe e overwrite tá setado como falso
+            continue
+            
+        print(f"Processando o modelo {model_name}")
         model_df = df[df['model_name'] == model_name]
         model_params = MODEL_PARAMS[model_name]
-        api = HfApi()
 
         try:
             hf_model_id = model_params['model_id']
@@ -69,7 +83,7 @@ if __name__ == "__main__":
             precisao = next(iter(st.get('parameters', {})), None)
             params_B = st.get('total', 0) / 1e9
         except Exception as e:
-            warnings.warn(f"Could not fetch model info from HuggingFace: {e}")
+            warnings.warn(f"Modelo não encontrado no HF: {e}")
             modelo = model_name
             sha_modelo = "unknown"
             hub_likes = 0
@@ -114,6 +128,24 @@ if __name__ == "__main__":
         all_results.append(out)
     
     results_df = pd.DataFrame(all_results)
-    results_df = add_additional_info(results_df)
-    results_df.to_csv(args.output_file, index=False)
-    print(f"Wrote {len(all_results)} models")
+    results_df = add_additional_info(results_df) # Lucas pediu para ter isso aqui
+    
+    if dataset_exists:
+        existing_dataset = load_dataset(args.output_repo, split='train')
+        
+        if args.overwrite:
+            new_model_names = set(results_df['Modelo'])
+            existing_df = existing_dataset.to_pandas()
+            filtered_df = existing_df[~existing_df['Modelo'].isin(new_model_names)]
+            
+            combined_df = pd.concat([filtered_df, results_df], ignore_index=True)
+            combined_dataset = Dataset.from_pandas(combined_df)
+        else:
+            combined_dataset = concatenate_datasets([existing_dataset, Dataset.from_pandas(results_df)])
+        
+        combined_dataset.push_to_hub(args.output_repo)
+        print(f"Atualizou resultados com {len(results_df)} modelos novos")
+    else:
+        new_dataset = Dataset.from_pandas(results_df)
+        new_dataset.push_to_hub(args.output_repo)
+        print(f"Repo criado com {len(results_df)} modelos")
