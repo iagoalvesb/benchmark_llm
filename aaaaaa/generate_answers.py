@@ -55,7 +55,9 @@ def generate_answer(prompt_text):
 def parse_yes_no(text):
     # Extract the first character of the answer
     text = text.strip()[0].upper()
-    answer = 1 if text == 'S' else 0 if text == 'N' else -1    
+    answer = 1 if text == 'S' else 0 if text == 'N' else None
+    if answer is None:
+        return None
     return str(answer)
 
 def parse_multiple_choice(text):
