@@ -15,7 +15,7 @@ MODEL_ID="qwen2.5"
 # -------------------------
 
 PROMPTS_PATH="pt-eval/prompts_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
-ANSWERS_PATH="pt-eval/answers_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+ANSWERS_PATH="pt-eval/answers_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 EVALUATION_PATH="pt-eval/eval_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
  
 MODEL_PATHS=(
