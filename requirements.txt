@@ -5,4 +5,6 @@ huggingface-hub
 bitsandbytes
 pandas
 scipy
-pyarrow 
+pyarrow
+scikit-learn
+accelerate
