@@ -53,7 +53,7 @@ BENCHMARK_NAMES=(
 # -------------------------
 
 echo "Generating prompts for benchmarks: ${BENCHMARK_NAMES[*]}"
-python get_bench_prompts.py \
+python generate_prompts.py \
   --n_shots "${NUM_EXPERIMENTS}" \
   --n_experiments "${NUM_EXPERIMENTS}" \
   --tokenizer_path "${TOKENIZER_PATH}" \
