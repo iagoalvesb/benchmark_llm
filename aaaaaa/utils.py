@@ -102,7 +102,7 @@ MODEL_PARAMS = {
         'tipo_peso': 'Original',
         'licenca': 'qwen-research'
     },
-    
+
     'Qwen2.5-3B-Instruct': {
         'model_id': 'Qwen/Qwen2.5-3B-Instruct',
         't': 'IFT',
@@ -110,7 +110,7 @@ MODEL_PARAMS = {
         'tipo_peso': 'Original',
         'licenca': 'qwen-research'
     },
-    
+
 }
 
 #######################################################################
