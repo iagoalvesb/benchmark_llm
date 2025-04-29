@@ -7,6 +7,8 @@
 
 Apenas rodando o `run.sh` dentro do diretório `src`, o script inteiro é executado. É necessário apenas mudar algumas configurações/parâmetros dentro do .sh
 
+<br>
+
 #### 1. **Configuration Parameters**
 - NUM_SHOTS: Quantidade de shots.
 - NUM_EXPERIMENTS: Número de experimentos a serem realizados, onde experimento é a quantidade de vezes um único sample do prompt vai rodar no eval. Cada experimento possui few shots diferentes, então mesmo se a pergunta a qual o modelo precisa responder é o mesmo, ele sempre terá um contexto differente no prompt pois terá fewshots differentes.
