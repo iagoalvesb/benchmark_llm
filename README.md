@@ -1,4 +1,4 @@
-**Dockerfile não foi validado ainda, não usar** -> Estamos ativamente trabalhando n
+**Dockerfile não foi validado ainda, não usar** -> Estamos ativamente trabalhando nisso
 
 # Como usar:
 
@@ -53,6 +53,9 @@ BENCHMARK_NAMES=(
   "oab"
 )
 ```
+
+##### Rodando por Dockerfile
+TODO
 
 ## Subindo no Leaderboard
 ##### Se você está lendo isso, estou esperando o Lucas mandar o novo esquema. O código depende bastante do esquema que for dado para o output. 
