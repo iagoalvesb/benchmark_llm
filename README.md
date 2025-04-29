@@ -3,11 +3,11 @@
 # Como usar:
 
 ## Rodando Evals
-##### Rodando Localmente
+### Rodando Localmente
 
 Apenas rodando o `run.sh` dentro do diretório `src`, o script inteiro é executado. É necessário apenas mudar algumas configurações/parâmetros dentro do .sh
 
-**Configuration Parameters**
+#### **Configuration Parameters**
 - NUM_SHOTS: Quantidade de shots.
 - NUM_EXPERIMENTS: Número de experimentos a serem realizados, onde experimento é a quantidade de vezes um único sample do prompt vai rodar no eval. Cada experimento possui few shots diferentes, então mesmo se a pergunta a qual o modelo precisa responder é o mesmo, ele sempre terá um contexto differente no prompt pois terá fewshots differentes.
 - TOKENIZER_PATH: Caminho do tokenizer dos modelos. (Como só passamos 1 tokenizer, os modelos que serão passados depois precisam ser da mesma familia)
@@ -21,7 +21,7 @@ TOKENIZER_PATH="Qwen/Qwen2.5-0.5B-Instruct"
 MODEL_ID="qwen2.5"
 ```
 
-**Path Definitions**
+#### **Path Definitions**
 As paths `PROMPTS_PATH`, `ANSWERS_PATH` e `EVALUATION_PATH` não precisam ser alteradas pois o script já gera elas automaticamente. O path que é necessário mudar é a seguinte:
 
 
@@ -36,7 +36,7 @@ MODEL_PATHS=(
 )
 ```
 
-**Benchmarks to run**
+#### **Benchmarks to run**
 Passe os benchmarks a serem rodados. Por default, o `run.sh` já roda todos. Se quiser rodar todos, não precisa fazer alterações
 
 Exemplo:
@@ -54,11 +54,11 @@ BENCHMARK_NAMES=(
 )
 ```
 
-##### Rodando por Dockerfile
+### Rodando por Dockerfile
 TODO
 
 ## Subindo no Leaderboard
-##### Se você está lendo isso, estou esperando o Lucas mandar o novo esquema. O código depende bastante do esquema que for dado para o output. 
+#### Se você está lendo isso, estou esperando o Lucas mandar o novo esquema. O código depende bastante do esquema que for dado para o output. 
 
 O script que faz isso é a `generate_leaderboard_info.py`.
 O comando para rodar é a seguinte, onde:
