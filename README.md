@@ -31,7 +31,7 @@ As paths `PROMPTS_PATH`, `ANSWERS_PATH` e `EVALUATION_PATH` não precisam ser al
 
 - MODEL_PATHS: O ID do modelo que for usado no HuggingFace. (Obs: Como passamos só um tokenizer, todos os modelos precisam usar o tokenizer definido anteriormente)
 
-Exemplo: 
+Exemplo:
 ```
 MODEL_PATHS=(
   "Qwen/Qwen2.5-0.5B-Instruct"
@@ -63,10 +63,14 @@ BENCHMARK_NAMES=(
 <br>
 
 ### Rodando por Dockerfile
-TODO
+
+Por enquanto, o docker só roda o .sh isoladamente. Você ainda vai ter que seguir os passos acima para tudo funcionar. 
+
+**Build (Rode na root do projeto)**: docker build -f .devcontainer/Dockerfile -t energygpt-eval ..
+**Run**: docker run --rm --gpus=all --env-file .env energygpt-eval
 
 ## Subindo no Leaderboard
-#### Se você está lendo isso, estou esperando o Lucas mandar o novo esquema. O código depende bastante do esquema que for dado para o output. 
+#### Se você está lendo isso, estou esperando o Lucas mandar o novo esquema. O código depende bastante do esquema que for dado para o output.
 
 O script que faz isso é a `generate_leaderboard_info.py`.
 O comando para rodar é a seguinte, onde:

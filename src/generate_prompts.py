@@ -72,7 +72,7 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
             shot_informations = benchmark.get_prompt_informations(shot)
             chat.append({"role": "user", "content": shot_informations['user_message']})
             chat.append({"role": "assistant", "content": shot_informations['assistant_message_with_answer']})
-        
+
         chat.append({"role": "user", "content": example_informations['user_message']})
         chat.append({"role": "assistant", "content": example_informations['assistant_message_without_answer']})
 
@@ -96,7 +96,7 @@ for benchmark_name in args.benchmark_names:
         dataset = dataset.filter(lambda x: all((x[col] is not None) and (x[col] != "") for col in benchmark.important_columns if col in x))
     else:
         dataset = dataset.filter(lambda x: all((x[col] is not None) and (x[col] != "") for col in x))
-        
+
     # dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
     dataset = dataset.map(lambda example, idx: {"idx": int(idx)}, with_indices=True, desc="Adding index")
 
@@ -107,7 +107,7 @@ for benchmark_name in args.benchmark_names:
     dataset = dataset.add_column("benchmark", [benchmark_name] * len(dataset))
     dataset = dataset.add_column("id_bench", [f"{benchmark_name}_{i}" for i in range(len(dataset))])
     dataset = dataset.cast_column("label", Value("string"))
-    
+
     # GERANDO PROMPTS
     get_prompt_partial = partial(get_prompt, benchmark=benchmark, dataset_benchmark=dataset)
     dataset = dataset.map(get_prompt_partial, num_proc=64, desc=benchmark_name)

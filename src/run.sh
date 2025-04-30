@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 set -e  # Exit immediately if a command exits with a non-zero status.
+echo "Starting..."
+
+# -------------------------
+# Docker Settings
+# -------------------------
+
+if [ -f /.dockerenv ]; then
+    python -c "import os; print('Running inside Docker – saving Hugging Face token...'); from huggingface_hub import HfFolder; HfFolder.save_token(os.getenv('HUGGINGFACE_TOKEN'))"
+fi
 
 # -------------------------
 # Configuration Parameters
@@ -17,7 +26,7 @@ MODEL_ID="qwen2.5"
 PROMPTS_PATH="pt-eval/prompts_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 ANSWERS_PATH="pt-eval/answers_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 EVALUATION_PATH="pt-eval/eval_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
- 
+
 MODEL_PATHS=(
   "Qwen/Qwen2.5-0.5B-Instruct"
 #   "Qwen/Qwen2.5-1.5B-Instruct"
