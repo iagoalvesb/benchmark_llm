@@ -1,5 +1,3 @@
-**Dockerfile não foi validado ainda, não usar** -> Estamos ativamente trabalhando nisso
-
 # Rodando Evals
 ### Rodando Localmente
 
@@ -68,7 +66,7 @@ Por enquanto, o docker só roda o .sh isoladamente. Você ainda vai ter que segu
 **Run**: docker run --rm --gpus=all --env-file .env energygpt-eval
 
 ## Subindo no Leaderboard
-#### Se você está lendo isso, estou esperando o Lucas mandar o novo esquema. O código depende bastante do esquema que for dado para o output.
+#### Ainda em produção, só falta firmar o schema do leaderboard mesmo
 
 O script que faz isso é a `generate_leaderboard_info.py`.
 O comando para rodar é a seguinte, onde:
