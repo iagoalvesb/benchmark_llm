@@ -1,19 +1,17 @@
 **Dockerfile não foi validado ainda, não usar** -> Estamos ativamente trabalhando nisso
 
-# Como usar:
-
-## Rodando Evals
+# Rodando Evals
 ### Rodando Localmente
 
-Apenas rodando o `run.sh` dentro do diretório `src`, o script inteiro é executado. É necessário apenas mudar algumas configurações/parâmetros dentro do .sh
+Apenas rodando o `run.sh` dentro do diretório `src`, o script inteiro é executado. Se rodar o `run.sh` com um novo modelo, é dado o append nos evaluations rodados anteriormente (se rodar com um modelo, a versão anterior é substituida pela versão mais recente). É necessário apenas mudar algumas configurações/parâmetros dentro do .sh
 
 <br>
 
 #### 1. **Configuration Parameters**
-- NUM_SHOTS: Quantidade de shots.
-- NUM_EXPERIMENTS: Número de experimentos a serem realizados, onde experimento é a quantidade de vezes um único sample do prompt vai rodar no eval. Cada experimento possui few shots diferentes, então mesmo se a pergunta a qual o modelo precisa responder é o mesmo, ele sempre terá um contexto differente no prompt pois terá fewshots differentes.
-- TOKENIZER_PATH: Caminho do tokenizer dos modelos. (Como só passamos 1 tokenizer, os modelos que serão passados depois precisam ser da mesma familia)
-- MODEL_ID: ID gerado do modelo no nosso eval. (IDs não podem repetir entre runs)
+- **NUM_SHOTS**: Quantidade de shots.
+- **NUM_EXPERIMENTS**: Número de experimentos a serem realizados, onde experimento é a quantidade de vezes um único sample do prompt vai rodar no eval. Cada experimento possui few shots diferentes, então mesmo se a pergunta a qual o modelo precisa responder é o mesmo, ele sempre terá um contexto diferente no prompt pois terá fewshots differentes.
+- **TOKENIZER_PATH**: Caminho do tokenizer dos modelos. (Como só passamos 1 tokenizer, os modelos que serão passados depois precisam ser da mesma familia)
+- **MODEL_ID**: ID gerado do modelo no nosso eval. (IDs não podem repetir entre runs, se repetir serão sobrescritos)
 
 Exemplo:
 ```
@@ -29,7 +27,7 @@ MODEL_ID="qwen2.5"
 As paths `PROMPTS_PATH`, `ANSWERS_PATH` e `EVALUATION_PATH` não precisam ser alteradas pois o script já gera elas automaticamente. O path que é necessário mudar é a seguinte:
 
 
-- MODEL_PATHS: O ID do modelo que for usado no HuggingFace. (Obs: Como passamos só um tokenizer, todos os modelos precisam usar o tokenizer definido anteriormente)
+- **MODEL_PATHS**: O ID do modelo que for usado no HuggingFace. (Obs: Como passamos só um tokenizer, todos os modelos precisam usar o tokenizer definido anteriormente)
 
 Exemplo:
 ```
@@ -43,7 +41,7 @@ MODEL_PATHS=(
 <br>
 
 #### 3. **Benchmarks to run**
-Passe os benchmarks a serem rodados. Por default, o `run.sh` já roda todos. Se quiser rodar todos, não precisa fazer alterações
+Benchmarks disponíveis em `src/UTILS_BENCHMARKS.py`. Por default, o `run.sh` já roda todos. Se quiser rodar todos, não precisa fazer alterações
 
 Exemplo:
 ```
