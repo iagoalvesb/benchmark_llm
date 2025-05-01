@@ -124,7 +124,9 @@ def add_additional_info(data):
         "Datasets Discurso de Ódio": "HateBR, PT Hate Speech, tweetSentBR",
         "Datasets Economia e Contabilidade": "BCB, CFCES",
         "Datasets Semântica e Inferência": "FAQUAD NLI, ASSIN2 RTE, ASSIN2 STS",
-        "Datasets Multidisciplinar": "ENEM, BLUEX, CNPU, ENADE, BNDES, CACD (1ª fase), CACD (2ª fase)"
+        "Datasets Multidisciplinar": "ENEM, BLUEX, CNPU, ENADE, BNDES, CACD (1ª fase), CACD (2ª fase)",
+        "energy_dataset": 0.5,
+        "reasoning_dataset": 0.5
     }
     
     for area, value in benchmarks.items():
