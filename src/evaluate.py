@@ -51,6 +51,7 @@ for model_name in df['model_name'].unique():
         # Remove None values from y_true and y_pred
         mask = [True if p is not None else False for p in y_pred]
         y_pred = y_pred[mask]
+        y_true = y_true[mask]
         non_parsed_pct = mask.count(False) / len(mask)
 
         benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
@@ -80,7 +81,7 @@ for model_name in df['model_name'].unique():
             'recall': recall,
             'f1_score': f1,
             'pearson_correlation': corr,
-            'non_parsed': non_parsed_pct,
+            'non_parsed_rate': non_parsed_pct,
         })
 
 # Convert list of dicts to a DataFrame for easy viewing
