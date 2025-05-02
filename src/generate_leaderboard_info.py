@@ -11,8 +11,10 @@ def parse_args():
                         help="HuggingFace dataset path containing benchmark results")
     parser.add_argument('--output-repo', required=True,
                         help="HuggingFace repo name to save the leaderboard")
+    parser.add_argument('--exclude-models', nargs='+', default=[],
+                        help="List of model names to exclude from the leaderboard")
     parser.add_argument('--overwrite', action='store_true',
-                        help="If True, overwrite existing model results; otherwise skip")
+                        help="If True, overwrite existing model results")
     return parser.parse_args()
 
 def compute_score(row, benchmark):
@@ -38,6 +40,9 @@ if __name__ == "__main__":
         df = pd.read_csv(args.benchmarks_file)
 
     df['score'] = df.apply(lambda r: compute_score(r, r['benchmark']), axis=1)
+
+    if args.exclude_models:
+        df = df[~df['model_name'].isin(args.exclude_models)]
 
     benchmark_exists = {}
     for bench in BENCHMARK_TO_AREA.keys():
