@@ -15,6 +15,8 @@ def parse_args():
                         help="List of model names to exclude from the leaderboard")
     parser.add_argument('--overwrite', action='store_true',
                         help="If True, overwrite existing model results")
+    parser.add_argument('--save-csv', action='store_true',
+                        help="If set, save the final results to a CSV file")
     return parser.parse_args()
 
 def compute_score(row, benchmark):
@@ -134,6 +136,10 @@ if __name__ == "__main__":
 
     results_df = pd.DataFrame(all_results)
     results_df = add_additional_info(results_df) # Lucas pediu para ter isso aqui
+
+    if args.save_csv:
+        output_csv_path = "leaderboard_results.csv"
+        results_df.to_csv(output_csv_path, index=False)
 
     if dataset_exists:
         existing_dataset = load_dataset(args.output_repo, split='train')

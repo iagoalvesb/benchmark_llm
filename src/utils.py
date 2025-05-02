@@ -111,6 +111,30 @@ MODEL_PARAMS = {
         'licenca': 'qwen-research'
     },
 
+    'Qwen2.5-7B-Instruct': {
+        'model_id': 'Qwen/Qwen2.5-7B-Instruct',
+        't': 'SFT',
+        'tipo': 'SFT : Supervised Finetuning',
+        'tipo_peso': 'Original',
+        'licenca': 'qwen-research'
+    },
+
+    'qwen2.5-7B-1E_fulltrain': {
+        'model_id': 'Qwen/Qwen2.5-3B-Instruct',
+        't': 'SFT',
+        'tipo': 'SFT : Supervised Finetuning',
+        'tipo_peso': 'Original',
+        'licenca': 'qwen-research'
+    },
+
+    'qwen2.5-7B-2E_fulltrain': {
+        'model_id': 'Qwen/Qwen2.5-3B-Instruct',
+        't': 'SFT',
+        'tipo': 'SFT : Supervised Finetuning',
+        'tipo_peso': 'Original',
+        'licenca': 'qwen-research'
+    },
+
 }
 
 #######################################################################
