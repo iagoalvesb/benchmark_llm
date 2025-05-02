@@ -113,6 +113,29 @@ if __name__ == "__main__":
             'SHA do modelo': sha_modelo,
         }
 
+        # Adicionado para casos onde você quer sobrescrever os valores de 'out' com os valores hardcoded
+        override_mapping = {
+            't': 'T',
+            'modelo': 'Modelo',
+            'tipo': 'Tipo',
+            'arquitetura': 'Arquitetura',
+            'tipo_peso': 'Tipo de Peso',
+            'precisao': 'Precisão',
+            'licenca': 'Licença',
+            'params_b': '#Params (B)',
+            'hub_likes': 'Hub Likes',
+            'disponivel_no_hub': 'Disponível no hub',
+            'sha_modelo': 'SHA do modelo',
+        }
+
+        for param_key, out_key in override_mapping.items():
+            if param_key in model_params:
+                value = model_params[param_key]
+                if param_key == 'arquitetura' and isinstance(value, list):
+                    out[out_key] = ','.join(value)
+                else:
+                    out[out_key] = value
+
         area_scores = {area: [] for area in set(BENCHMARK_TO_AREA.values())}
         for _, row in model_df.iterrows():
             bench = row['benchmark']

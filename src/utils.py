@@ -116,23 +116,44 @@ MODEL_PARAMS = {
         't': 'SFT',
         'tipo': 'SFT : Supervised Finetuning',
         'tipo_peso': 'Original',
-        'licenca': 'qwen-research'
+        'licenca': 'qwen-research',
+
+        'precisao': 'BF16',
+        'arquitetura': 'N/A',
+        'params_b': 7.0,
+        'hub_likes': 0,
+        'disponivel_no_hub': False,
+        'sha_modelo': 'N/A',
     },
 
     'qwen2.5-7B-1E_fulltrain': {
-        'model_id': 'Qwen/Qwen2.5-3B-Instruct',
+        'model_id': 'qwen2.5-7B-2E_fulltrain',
         't': 'SFT',
         'tipo': 'SFT : Supervised Finetuning',
         'tipo_peso': 'Original',
-        'licenca': 'qwen-research'
+        'licenca': 'qwen-research',
+
+        'precisao': 'BF16',
+        'arquitetura': 'N/A',
+        'params_b': 7.0,
+        'hub_likes': 0,
+        'disponivel_no_hub': False,
+        'sha_modelo': 'N/A',
     },
 
     'qwen2.5-7B-2E_fulltrain': {
-        'model_id': 'Qwen/Qwen2.5-3B-Instruct',
+        'model_id': 'qwen2.5-7B-2E_fulltrain',
         't': 'SFT',
         'tipo': 'SFT : Supervised Finetuning',
         'tipo_peso': 'Original',
-        'licenca': 'qwen-research'
+        'licenca': 'qwen-research',
+
+        'precisao': 'BF16',
+        'arquitetura': 'N/A',
+        'params_b': 7.0,
+        'hub_likes': 0,
+        'disponivel_no_hub': False,
+        'sha_modelo': 'N/A',
     },
 
 }
