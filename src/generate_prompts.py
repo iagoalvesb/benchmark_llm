@@ -46,16 +46,28 @@ parser.add_argument(
     help="Names of benchmarks [must be in BENCHMARKS_PATTERNS.py]"
 )
 
+parser.add_argument(
+    "--use_fixed_seed",
+    type=bool,
+    default=True,
+)
+
 args = parser.parse_args()
 
 
 tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
 tokenizer.pad_token_id = tokenizer.eos_token_id
 
-def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots):
-    # não vamos ter nossa query vazada no few_shot
+def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots, use_fixed_seed=args.use_fixed_seed, seed=42):
     possible_shots_indx = [i for i, example in enumerate(dataset_fewshot) if example['idx'] != id_query]
-    shot_positions = random.sample(possible_shots_indx, n_shots)
+    
+    if use_fixed_seed:
+        random_state = random.Random(seed)
+        shot_positions = random_state.sample(possible_shots_indx, n_shots)
+    else:
+        shot_positions = random.sample(possible_shots_indx, n_shots)
+
+    # não vamos ter nossa query vazada no few_shot
     shots = dataset_fewshot.select(shot_positions)
     shot_id_benches = [shots[i]['id_bench'] for i in range(len(shots))]
     return shots, shot_id_benches
@@ -64,7 +76,7 @@ def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots):
 def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_experiments=args.n_experiments):
     for i in range(n_experiments):
 
-        shots, shot_id_benches = get_shots(example['idx'], dataset, n_shots)
+        shots, shot_id_benches = get_shots(example['idx'], dataset, n_shots, args.use_fixed_seed)
         example_informations = benchmark.get_prompt_informations(example)
 
         chat = [{"role": "system", "content": example_informations['base_system_message']}]

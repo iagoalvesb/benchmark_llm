@@ -16,8 +16,8 @@ fi
 # Configuration Parameters
 # -------------------------
 
-NUM_SHOTS=4
-NUM_EXPERIMENTS=1
+NUM_SHOTS=5
+NUM_EXPERIMENTS=3
 TOKENIZER_PATH="Qwen/Qwen2.5-0.5B-Instruct"
 MODEL_ID="qwen2.5"
 
