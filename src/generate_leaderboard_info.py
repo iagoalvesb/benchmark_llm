@@ -69,44 +69,68 @@ if __name__ == "__main__":
 
     for model_name in model_names:
         if model_name in models_to_skip:
-            print(f"Pulando o modelo {model_name} (já existe, overwrite está como False)") # pula modelo se já existe e overwrite tá setado como falso
+            print(f"Pulando o modelo {model_name} (já existe, overwrite está como False)")
             continue
 
         print(f"Processando o modelo {model_name}")
         model_df = df[df['model_name'] == model_name]
         model_params = MODEL_PARAMS[model_name]
 
+        modelo = model_name
+        sha_modelo = license = determined_tipo = "unknown"
+        hub_likes = 0
+        disponivel = False
+        is_adapter = "Original"
+        arquiteturas = []
+        precisao = None
+        params_B = 0
+        t = "Base"
+
         try:
             hf_model_id = model_params['model_id']
             info = api.model_info(hf_model_id)
-            cfg = info.config or {}
-            st = info.safetensors or {}
-
-            modelo = info.modelId
-            sha_modelo = info.sha
-            hub_likes = info.likes
-            disponivel = not info.private
-            arquiteturas = cfg.get('architectures', [])
-            precisao = next(iter(st.get('parameters', {})), None)
-            params_B = st.get('total', 0) / 1e9
         except Exception as e:
-            warnings.warn(f"Modelo não encontrado no HF: {e}")
-            modelo = model_name
-            sha_modelo = "unknown"
-            hub_likes = 0
-            disponivel = False
-            arquiteturas = []
-            precisao = None
-            params_B = 0
+            warnings.warn(f"Erro ao obter informações do modelo {model_name}: {e}")
+
+        def safe_get(getter_func, default=None):
+            try:
+                return getter_func()
+            except Exception:
+                return default
+
+        modelo = safe_get(lambda: info.modelId, modelo)
+        sha_modelo = safe_get(lambda: info.sha, sha_modelo)
+        hub_likes = safe_get(lambda: info.likes, hub_likes)
+        disponivel = safe_get(lambda: not info.private, disponivel)
+        license = safe_get(lambda: info.card_data.get('license'), license)
+
+        cfg = safe_get(lambda: info.config, {}) or {}
+        st = safe_get(lambda: info.safetensors, {}) or {}
+
+        arquiteturas = safe_get(lambda: cfg.get('architectures', []), arquiteturas)
+        precisao = safe_get(lambda: next(iter(st.get('parameters', {})), None), precisao)
+        params_B = safe_get(lambda: st.get('total', 0) / 1e9, params_B)
+
+        is_adapter = "Original"
+        if safe_get(lambda: info.config and (info.config.get('adapter_type') or info.config.get('peft_config')), False):
+            is_adapter = "Adapter"
+
+        determined_tipo = t = "Base"
+        if safe_get(lambda: info.card_data and info.card_data.get('base_model'), False):
+            base_spec = info.card_data.get('base_model')
+            actual_base_id = safe_get(lambda: (base_spec[0] if isinstance(base_spec, list) and base_spec else base_spec) if isinstance(base_spec, (list, str)) else None, None)
+            if actual_base_id and actual_base_id != info.modelId:
+                t = "SFT"
+                determined_tipo = "SFT: Supervised Finetuning"
 
         out = {
-            'T': model_params.get('t', 'n/a'),
+            'T': t,
             'Modelo': modelo,
-            'Tipo': model_params.get('tipo', 'n/a'),
+            'Tipo': determined_tipo,
             'Arquitetura': ','.join(arquiteturas) if arquiteturas else None,
-            'Tipo de Peso': model_params.get('tipo_peso', 'Original'),
+            'Tipo de Peso': is_adapter,
             'Precisão': precisao,
-            'Licença': model_params.get('licenca', 'n/a'),
+            'Licença': license,
             '#Params (B)': round(params_B, 3) if params_B else 0,
             'Hub Likes': hub_likes,
             'Disponível no hub': disponivel,
@@ -161,7 +185,7 @@ if __name__ == "__main__":
     results_df = add_additional_info(results_df) # Lucas pediu para ter isso aqui
 
     if args.save_csv:
-        output_csv_path = "leaderboard_results.csv"
+        output_csv_path = "leaderboard_results_test.csv"
         results_df.to_csv(output_csv_path, index=False)
 
     if dataset_exists:

@@ -113,7 +113,6 @@ possible_datasets = list_datasets(search=args.answers_path)
 dataset_exists = any(ds.id == args.answers_path for ds in possible_datasets)
 
 
-new_datasets = []
 for model_path in args.model_path:
     print(f"\n** RUNNING MODEL: {model_path}")
     model_name = model_path.split("/")[-1]
@@ -121,7 +120,6 @@ for model_path in args.model_path:
     dataset = dataset.map(lambda example: {"model_name": model_name})
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-
     tokenizer.pad_token_id = tokenizer.eos_token_id
     quantization_config = BitsAndBytesConfig(load_in_8bit=True)
     model = AutoModelForCausalLM.from_pretrained(
@@ -133,36 +131,33 @@ for model_path in args.model_path:
                         )
 
     dataset = dataset.map(map_answer, desc=f"{model_path.split('/')[1]}")
-    new_datasets.append(dataset)
 
-all_datasets = []
-if dataset_exists:
-    original_dataset = load_dataset(args.answers_path, split='train')
-    
-    ran_benchmarks = set()
-    ran_models = set()
-    for ds in new_datasets:
-        ran_benchmarks.update(set(ds['benchmark']))
-        ran_models.update(set(ds['model_name']))
-    
-    filtered_dataset = original_dataset.filter(
-        lambda x: not (
-            x['benchmark'] in ran_benchmarks and 
-            x['model_name'] in ran_models
+    all_datasets = []
+    possible_datasets = list_datasets(search=args.answers_path)
+    dataset_exists = any(ds.id == args.answers_path for ds in possible_datasets)
+
+    if dataset_exists:
+        original_dataset = load_dataset(args.answers_path, split='train')
+
+        current_benchmarks = set(dataset['benchmark'])
+        filtered_dataset = original_dataset.filter(
+            lambda x: not (x['benchmark'] in current_benchmarks and x['model_name'] == model_name)
         )
+        all_datasets.append(filtered_dataset)
+
+    all_datasets.append(dataset)
+    full_dataset = concatenate_datasets(all_datasets)
+
+    full_dataset = full_dataset.map(
+        lambda example, idx: {**example, "id": idx + 1},
+        with_indices=True
     )
-    all_datasets.append(filtered_dataset)
 
-all_datasets.extend(new_datasets)
+    full_dataset.push_to_hub(args.answers_path)
+    print(f"\n**SAVED MODEL {model_name} AT: {args.answers_path}")
 
-full_dataset = concatenate_datasets(all_datasets)
+    del model
+    del tokenizer
+    torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
-# gambiarra para manter os ids consistentes
-full_dataset = full_dataset.map(
-    lambda example, idx: {**example, "id": idx + 1},
-    with_indices=True
-)
-
-full_dataset.push_to_hub(args.answers_path)
-
-print(F"\n\n**SAVED AT: {args.answers_path}")
+print(f"\n\n**ALL MODELS SAVED AT: {args.answers_path}")
