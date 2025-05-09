@@ -8,3 +8,4 @@ scipy
 pyarrow
 scikit-learn
 accelerate
+hf_xet
