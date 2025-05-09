@@ -2,6 +2,8 @@
 set -e  # Exit immediately if a command exits with a non-zero status.
 echo "Starting..."
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 # -------------------------
 # Docker Settings
 # -------------------------
@@ -50,9 +52,6 @@ BENCHMARK_NAMES=(
   "oab"
 )
 
-
-
-
 # ---------------------------------------------------------------------------------------------------------------
 # ------------------------- RUNNING SCRIPTS TO GENERATE PROMPTS, ANSWERS AND EVALUATION -------------------------
 # ---------------------------------------------------------------------------------------------------------------
@@ -62,7 +61,7 @@ BENCHMARK_NAMES=(
 # -------------------------
 
 echo "Generating prompts for benchmarks: ${BENCHMARK_NAMES[*]}"
-python generate_prompts.py \
+python "${SCRIPT_DIR}/generate_prompts.py" \
   --n_shots "${NUM_EXPERIMENTS}" \
   --n_experiments "${NUM_EXPERIMENTS}" \
   --tokenizer_path "${TOKENIZER_PATH}" \
@@ -78,7 +77,7 @@ echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"
 
 
 echo "Running answer generation..."
-python generate_answers.py \
+python "${SCRIPT_DIR}/generate_answers.py" \
   --prompts_path "${PROMPTS_PATH}" \
   --answers_path "${ANSWERS_PATH}" \
   --model_path "${MODEL_PATHS[@]}"
@@ -91,7 +90,7 @@ echo "Answer generation completed. Outputs saved to '${ANSWERS_PATH}'"
 # -------------------------
 
 echo "Evaluating generated answers..."
-python evaluate.py \
+python "${SCRIPT_DIR}/evaluate.py" \
   --answers_path "${ANSWERS_PATH}" \
   --eval_path "${EVALUATION_PATH}"
 
