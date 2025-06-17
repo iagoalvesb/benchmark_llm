@@ -5,6 +5,7 @@ BENCHMARK_TO_AREA = {
     'hatebr':                 'Discurso de Ódio',
     'portuguese_hate_speech': 'Discurso de Ódio',
     'tweetsentbr':            'Discurso de Ódio',
+    'toxsyn_pt':              'Discurso de Ódio',
     'oab':                    'Área do Direito',
     'enam':                   'Área do Direito',
     'revalida':               'Área Médica',
@@ -33,6 +34,7 @@ BENCHMARK_TO_COLUMN = {
     'hatebr':                 'HateBR',
     'portuguese_hate_speech': 'PT Hate Speech',
     'tweetsentbr':            'tweetSentBR',
+    'toxsyn_pt':              'ToxSyn-PT',
     'oab':                    'OAB',
     'revalida':               'Revalida',
     'mrex':                   'MREX',
@@ -61,6 +63,7 @@ BENCHMARK_TO_METRIC = {
     'hatebr':                 ['accuracy'],
     'portuguese_hate_speech': ['accuracy'],
     'tweetsentbr':            ['accuracy'],
+    'toxsyn_pt':              ['accuracy'],
     'oab':                    ['accuracy'],
     'enam':                   ['accuracy'],
     'revalida':               ['accuracy'],
@@ -109,6 +112,22 @@ MODEL_PARAMS = {
         'tipo': 'SFT : Supervised Finetuning',
         'tipo_peso': 'Original',
         'licenca': 'qwen-research'
+    },
+
+    'Llama-3.2-1B-Instruct': {
+        'model_id': 'meta-llama/Llama-3.2-1B-Instruct',
+        't': 'SFT',
+        'tipo': 'SFT : Supervised Finetuning',
+        'tipo_peso': 'Original',
+        'licenca': 'llama3.2'
+    },
+
+    'Llama-3.2-3B-Instruct': {
+        'model_id': 'meta-llama/Llama-3.2-3B-Instruct',
+        't': 'SFT',
+        'tipo': 'SFT : Supervised Finetuning',
+        'tipo_peso': 'Original',
+        'licenca': 'llama3.2'
     },
 
     'Qwen2.5-7B-Instruct': {
@@ -166,15 +185,15 @@ def add_additional_info(data):
         "Datasets Área do Direito": "OAB, ENAM",
         "Datasets Provas Militares": "AFA, ITA, IME",
         "Datasets Computação": "POSCOMP, OBI",
-        "Datasets Discurso de Ódio": "HateBR, PT Hate Speech, tweetSentBR",
+        "Datasets Discurso de Ódio": "HateBR, PT Hate Speech, tweetSentBR, ToxSyn-PT",
         "Datasets Economia e Contabilidade": "BCB, CFCES",
         "Datasets Semântica e Inferência": "FAQUAD NLI, ASSIN2 RTE, ASSIN2 STS",
         "Datasets Multidisciplinar": "ENEM, BLUEX, CNPU, ENADE, BNDES, CACD (1ª fase), CACD (2ª fase)",
         "energy_dataset": 0.5,
         "reasoning_dataset": 0.5
     }
-    
+
     for area, value in benchmarks.items():
         data[area] = value
-    
+
     return data
