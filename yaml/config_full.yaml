@@ -1,0 +1,25 @@
+# Campos obrigatórios
+tokenizer_path: "Qwen/Qwen2.5-0.5B-Instruct"
+model_id: "qwen2.5"
+model_paths:
+  - "Qwen/Qwen2.5-0.5B-Instruct"
+  - "Qwen/Qwen2.5-1.5B-Instruct"
+  - "Qwen/Qwen2.5-3B-Instruct"
+
+
+# Campos opcionais
+multi_gpu: false
+update_leaderboard: false
+
+num_shots: 5
+num_experiments: 3
+benchmark_names:
+  - "assin2rte"
+  - "assin2sts"
+  - "bluex"
+  - "enem"
+  - "hatebr"
+  - "portuguese_hate_speech"
+  - "faquad"
+  - "tweetsentbr"
+  - "oab"

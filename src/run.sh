@@ -16,10 +16,33 @@ fi
 # Configuration Parameters
 # -------------------------
 
-NUM_SHOTS=5
-NUM_EXPERIMENTS=3
-TOKENIZER_PATH="Qwen/Qwen2.5-0.5B-Instruct"
-MODEL_ID="qwen2.5"
+CONFIG_FILE="${1:-}"
+
+if [ -z "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file is required as first argument" >&2
+    echo "Usage: $0 <config.yaml>" >&2
+    exit 1
+fi
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file '$CONFIG_FILE' not found" >&2
+    exit 1
+fi
+
+echo "Loading configuration from: $CONFIG_FILE"
+
+eval "$(python "${SCRIPT_DIR}/parse_input.py" "$CONFIG_FILE")"
+
+echo "Configuration loaded successfully!"
+echo "  NUM_SHOTS: $NUM_SHOTS"
+echo "  NUM_EXPERIMENTS: $NUM_EXPERIMENTS"
+echo "  MODEL_ID: $MODEL_ID"
+echo "  TOKENIZER_PATH: $TOKENIZER_PATH"
+echo "  MULTI_GPU: $MULTI_GPU"
+echo "  UPDATE_LEADERBOARD: $UPDATE_LEADERBOARD"
+echo "  MODEL_PATHS: ${MODEL_PATHS[@]}"
+echo "  MODEL_CUSTOM_FLAGS: ${MODEL_CUSTOM_FLAGS[@]}"
+echo "  MODEL_TOKENIZERS: ${MODEL_TOKENIZERS[@]}"
 
 # -------------------------
 # Path Definitions
@@ -28,29 +51,6 @@ MODEL_ID="qwen2.5"
 PROMPTS_PATH="pt-eval/prompts_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 ANSWERS_PATH="pt-eval/answers_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 EVALUATION_PATH="pt-eval/eval_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
-
-MODEL_PATHS=(
-  "Qwen/Qwen2.5-0.5B-Instruct"
-#   "Qwen/Qwen2.5-1.5B-Instruct"
-#   "Qwen/Qwen2.5-3B-Instruct"
-)
-
-
-# -------------------------
-# Benchmarks to run
-# -------------------------
-
-BENCHMARK_NAMES=(
-  "assin2rte"
-  "assin2sts"
-  "bluex"
-  "enem"
-  "hatebr"
-  "portuguese_hate_speech"
-  "faquad"
-  "tweetsentbr"
-  "oab"
-)
 
 # ---------------------------------------------------------------------------------------------------------------
 # ------------------------- RUNNING SCRIPTS TO GENERATE PROMPTS, ANSWERS AND EVALUATION -------------------------
