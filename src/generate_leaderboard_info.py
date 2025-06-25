@@ -13,6 +13,10 @@ def parse_args():
                         help="HuggingFace repo name to save the leaderboard")
     parser.add_argument('--exclude-models', nargs='+', default=[],
                         help="List of model names to exclude from the leaderboard")
+    parser.add_argument('--custom-flags', nargs='+', default=[],
+                        help="Custom flags for each model (true/false)")
+    parser.add_argument('--model-paths', nargs='+', default=[],
+                        help="Model paths corresponding to custom flags")
     parser.add_argument('--overwrite', action='store_true',
                         help="If True, overwrite existing model results")
     parser.add_argument('--save-csv', action='store_true',
@@ -67,6 +71,14 @@ if __name__ == "__main__":
         existing_dataset = load_dataset(args.output_repo, split='train')
         models_to_skip = set(existing_dataset['Modelo'])
 
+    custom_flag_mapping = {}
+    if args.custom_flags and args.model_paths:
+        if len(args.custom_flags) == len(args.model_paths):
+            for model_path, custom_flag in zip(args.model_paths, args.custom_flags):
+                custom_flag_mapping[model_path] = custom_flag.lower() == 'true'
+        else:
+            warnings.warn(f"Custom flags count ({len(args.custom_flags)}) doesn't match model paths count ({len(args.model_paths)})")
+
     for model_name in model_names:
         if model_name in models_to_skip:
             print(f"Pulando o modelo {model_name} (já existe, overwrite está como False)")
@@ -74,7 +86,7 @@ if __name__ == "__main__":
 
         print(f"Processando o modelo {model_name}")
         model_df = df[df['model_name'] == model_name]
-        model_params = MODEL_PARAMS[model_name]
+        model_params = MODEL_PARAMS.get(model_name, {})
 
         modelo = model_name
         sha_modelo = license = determined_tipo = "unknown"
@@ -115,13 +127,19 @@ if __name__ == "__main__":
         if safe_get(lambda: info.config and (info.config.get('adapter_type') or info.config.get('peft_config')), False):
             is_adapter = "Adapter"
 
-        determined_tipo = t = "Base"
-        if safe_get(lambda: info.card_data and info.card_data.get('base_model'), False):
-            base_spec = info.card_data.get('base_model')
-            actual_base_id = safe_get(lambda: (base_spec[0] if isinstance(base_spec, list) and base_spec else base_spec) if isinstance(base_spec, (list, str)) else None, None)
-            if actual_base_id and actual_base_id != info.modelId:
-                t = "SFT"
-                determined_tipo = "SFT: Supervised Finetuning"
+        is_custom_model = custom_flag_mapping.get(model_name, False)
+
+        if is_custom_model:
+            t = "Custom"
+            determined_tipo = "Custom"
+        else:
+            determined_tipo = t = "Base"
+            if safe_get(lambda: info and info.card_data and info.card_data.get('base_model'), False):
+                base_spec = info.card_data.get('base_model')
+                actual_base_id = safe_get(lambda: (base_spec[0] if isinstance(base_spec, list) and base_spec else base_spec) if isinstance(base_spec, (list, str)) else None, None)
+                if actual_base_id and actual_base_id != info.modelId:
+                    t = "SFT"
+                    determined_tipo = "SFT: Supervised Finetuning"
 
         out = {
             'T': t,
@@ -154,6 +172,9 @@ if __name__ == "__main__":
 
         for param_key, out_key in override_mapping.items():
             if param_key in model_params:
+                if param_key in ['t', 'tipo'] and is_custom_model:
+                    continue
+                
                 value = model_params[param_key]
                 if param_key == 'arquitetura' and isinstance(value, list):
                     out[out_key] = ','.join(value)

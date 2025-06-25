@@ -62,14 +62,15 @@ EVALUATION_PATH="pt-eval/eval_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 
 echo "Generating prompts for benchmarks: ${BENCHMARK_NAMES[*]}"
 python "${SCRIPT_DIR}/generate_prompts.py" \
-  --n_shots "${NUM_EXPERIMENTS}" \
+  --n_shots "${NUM_SHOTS}" \
   --n_experiments "${NUM_EXPERIMENTS}" \
-  --tokenizer_path "${TOKENIZER_PATH}" \
+  --model_paths "${MODEL_PATHS[@]}" \
+  --model_tokenizers "${MODEL_TOKENIZERS[@]}" \
   --benchmark_names "${BENCHMARK_NAMES[@]}" \
   --prompts_path "${PROMPTS_PATH}"
 
 echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"
-
+exit 0
 
 # -------------------------
 # Generating Answers
@@ -95,3 +96,22 @@ python "${SCRIPT_DIR}/evaluate.py" \
   --eval_path "${EVALUATION_PATH}"
 
 echo "Evaluation completed. Results saved to ${EVALUATION_PATH}"
+
+
+# -------------------------
+# Update Leaderboard (Optional)
+# -------------------------
+
+if [ "$UPDATE_LEADERBOARD" = "true" ]; then
+    echo "Updating leaderboard..."
+    python "${SCRIPT_DIR}/generate_leaderboard_info.py" \
+      --benchmarks-file "${EVALUATION_PATH}" \
+      --output-repo "pt-eval/leaderboard" \
+      --model-paths "${MODEL_PATHS[@]}" \
+      --custom-flags "${MODEL_CUSTOM_FLAGS[@]}"
+    echo "Leaderboard updated successfully!"
+else
+    echo "Skipping leaderboard update (UPDATE_LEADERBOARD=false)"
+fi
+
+echo "Pipeline completed successfully!"
