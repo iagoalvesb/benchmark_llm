@@ -32,12 +32,13 @@ def get_base_model_from_hf(model_path):
 
 def determine_tokenizer_for_model(model_config):
     model_path = model_config['path']
-    if 'tokenizer' in model_config and model_config['tokenizer']:
-        return model_config['tokenizer']
+    if 'tokenizer_path' in model_config and model_config['tokenizer_path']:
+        return model_config['tokenizer_path']
     
-    base_model = get_base_model_from_hf(model_path)
-    if base_model and base_model != model_path:
-        return base_model
+    # TODO: Buscar pelo base_model não é interessante pq o modelo pode ser base sem chat_template
+    # base_model = get_base_model_from_hf(model_path)
+    # if base_model and base_model != model_path:
+    #     return base_model
     
     return model_path
 
@@ -60,7 +61,7 @@ def get_config_with_defaults(yaml_config):
         ]
     }
     
-    required_fields = ['model_id', 'model_paths']
+    required_fields = ['run_id', 'model_paths']
     
     config = defaults.copy()
     
@@ -85,7 +86,7 @@ def get_config_with_defaults(yaml_config):
         else:
             raise ValueError("Model paths must be strings or dicts with 'path' field")
         
-        model_config['tokenizer'] = determine_tokenizer_for_model(model_config)
+        model_config['tokenizer_path'] = determine_tokenizer_for_model(model_config)
         processed_model_paths.append(model_config)
     
     config['model_paths'] = processed_model_paths
@@ -100,7 +101,7 @@ def generate_bash_variables(config):
     
     bash_vars.append(f'NUM_SHOTS={config["num_shots"]}')
     bash_vars.append(f'NUM_EXPERIMENTS={config["num_experiments"]}')
-    bash_vars.append(f'MODEL_ID="{config["model_id"]}"')
+    bash_vars.append(f'RUN_ID="{config["run_id"]}"')
     bash_vars.append(f'MULTI_GPU={str(config["multi_gpu"]).lower()}')
     bash_vars.append(f'UPDATE_LEADERBOARD={str(config["update_leaderboard"]).lower()}')
     bash_vars.append('MODEL_PATHS=(')
@@ -115,7 +116,7 @@ def generate_bash_variables(config):
     
     bash_vars.append('MODEL_TOKENIZERS=(')
     for model in config['model_paths']:
-        bash_vars.append(f'  "{model["tokenizer"]}"')
+        bash_vars.append(f'  "{model["tokenizer_path"]}"')
     bash_vars.append(')')
     
     bash_vars.append('')

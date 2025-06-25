@@ -36,8 +36,7 @@ eval "$(python "${SCRIPT_DIR}/parse_input.py" "$CONFIG_FILE")"
 echo "Configuration loaded successfully!"
 echo "  NUM_SHOTS: $NUM_SHOTS"
 echo "  NUM_EXPERIMENTS: $NUM_EXPERIMENTS"
-echo "  MODEL_ID: $MODEL_ID"
-echo "  TOKENIZER_PATH: $TOKENIZER_PATH"
+echo "  RUN_ID: $RUN_ID"
 echo "  MULTI_GPU: $MULTI_GPU"
 echo "  UPDATE_LEADERBOARD: $UPDATE_LEADERBOARD"
 echo "  MODEL_PATHS: ${MODEL_PATHS[@]}"
@@ -48,7 +47,7 @@ echo "  MODEL_TOKENIZERS: ${MODEL_TOKENIZERS[@]}"
 # Path Definitions
 # -------------------------
 
-PROMPTS_PATH="pt-eval/prompts_${MODEL_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+PROMPTS_PATH="pt-eval/prompts_${RUN_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 ANSWERS_PATH="pt-eval/answers_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 EVALUATION_PATH="pt-eval/eval_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 
@@ -70,7 +69,7 @@ python "${SCRIPT_DIR}/generate_prompts.py" \
   --prompts_path "${PROMPTS_PATH}"
 
 echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"
-exit 0
+
 
 # -------------------------
 # Generating Answers
@@ -84,7 +83,7 @@ python "${SCRIPT_DIR}/generate_answers.py" \
   --model_path "${MODEL_PATHS[@]}"
 
 echo "Answer generation completed. Outputs saved to '${ANSWERS_PATH}'"
-
+exit 0
 
 # -------------------------
 # Evaluating Results

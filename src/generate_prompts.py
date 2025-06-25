@@ -115,7 +115,7 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
                 "models": tokenizer_to_models[tokenizer_path]
             }
         
-        example[f"prompt_{i}"] = json.dumps(prompt_dict)
+        example[f"prompt_{i}"] = json.dumps(prompt_dict, ensure_ascii=False)
         example[f"shot_indices_{i}"] = shot_id_benches
     return example
 
@@ -135,7 +135,7 @@ for benchmark_name in args.benchmark_names:
     else:
         dataset = dataset.filter(lambda x: all((x[col] is not None) and (x[col] != "") for col in x))
 
-    # dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
+    dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
     dataset = dataset.map(lambda example, idx: {"idx": int(idx)}, with_indices=True, desc="Adding index")
 
     # PADRONIZANDO TODOS OS BENCHMARKS
