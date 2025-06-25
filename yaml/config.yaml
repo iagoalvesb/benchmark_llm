@@ -1,5 +1,5 @@
 # Campos obrigatórios (Modelos do evaluation)
-model_id: "test_changes"
+run_id: "test_changes"
 model_paths:
   - path: "Qwen/Qwen2.5-0.5B-Instruct"
     custom: false
