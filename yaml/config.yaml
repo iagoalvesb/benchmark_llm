@@ -12,9 +12,11 @@ model_paths:
     tokenizer_path: "meta-llama/Llama-3.2-3B-Instruct"
 
 # Campos opcionais (Parâmetros do script)
-multi_gpu: false
-update_leaderboard: false
+multi_gpu:
+  enabled: false
+  num_gpus: 1
 
+update_leaderboard: false
 num_shots: 5
 num_experiments: 3
 benchmark_names:

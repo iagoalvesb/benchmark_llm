@@ -46,7 +46,10 @@ def get_config_with_defaults(yaml_config):
     defaults = {
         'num_shots': 5,
         'num_experiments': 3,
-        'multi_gpu': False,
+        'multi_gpu': {
+            'enabled': False,
+            'num_gpus': 1
+        },
         'update_leaderboard': False,
         'benchmark_names': [
             "assin2rte",
@@ -64,8 +67,13 @@ def get_config_with_defaults(yaml_config):
     required_fields = ['run_id', 'model_paths']
     
     config = defaults.copy()
-    
     config.update(yaml_config)
+    
+    if not isinstance(config.get('multi_gpu'), dict):
+        raise ValueError("'multi_gpu' must be a dictionary with 'enabled' and 'num_gpus' fields")
+    
+    config['multi_gpu'].setdefault('enabled', False)
+    config['multi_gpu'].setdefault('num_gpus', 1)
     
     missing_fields = [field for field in required_fields if field not in config or config[field] is None]
     if missing_fields:
@@ -102,7 +110,8 @@ def generate_bash_variables(config):
     bash_vars.append(f'NUM_SHOTS={config["num_shots"]}')
     bash_vars.append(f'NUM_EXPERIMENTS={config["num_experiments"]}')
     bash_vars.append(f'RUN_ID="{config["run_id"]}"')
-    bash_vars.append(f'MULTI_GPU={str(config["multi_gpu"]).lower()}')
+    bash_vars.append(f'MULTI_GPU_ENABLED={str(config["multi_gpu"]["enabled"]).lower()}')
+    bash_vars.append(f'MULTI_GPU_NUM_GPUS={config["multi_gpu"]["num_gpus"]}')
     bash_vars.append(f'UPDATE_LEADERBOARD={str(config["update_leaderboard"]).lower()}')
     bash_vars.append('MODEL_PATHS=(')
     for model in config['model_paths']:

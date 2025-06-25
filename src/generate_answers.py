@@ -4,6 +4,7 @@ from huggingface_hub import list_datasets
 import torch
 import argparse
 import json
+from accelerate import Accelerator
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
 import re
 
@@ -31,9 +32,22 @@ parser.add_argument(
     help="Huggingface path to the models"
 )
 
+parser.add_argument(
+    "--use_accelerate",
+    action="store_true",
+    help="Use Accelerate for multi-GPU inference"
+)
+
 args = parser.parse_args()
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+if args.use_accelerate:
+    accelerator = Accelerator()
+    device = accelerator.device
+    print(f"Using Accelerate with device: {device}")
+else:
+    accelerator = None
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using single device: {device}")
 
 def get_prompt_for_model(prompt_json_str, model_path):
     try:
@@ -126,21 +140,28 @@ for model_path in args.model_path:
     print(f"\n** RUNNING MODEL: {model_path}")
     model_name = model_path.split("/")[-1]
     current_model_path = model_path
-    
-    dataset = load_dataset(args.prompts_path, split='train')
-    dataset = dataset.map(lambda example: {"model_name": model_name})
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer.pad_token_id = tokenizer.eos_token_id
     quantization_config = BitsAndBytesConfig(load_in_8bit=True)
-    model = AutoModelForCausalLM.from_pretrained(
-                            model_path,
-                            quantization_config=quantization_config,
-                            low_cpu_mem_usage=True,
-                            device_map=device,
-                            # attn_implementation = "flash_attention_2",
-                        )
 
+    if args.use_accelerate:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            quantization_config=quantization_config,
+            low_cpu_mem_usage=True,
+        )
+        model = accelerator.prepare(model)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            quantization_config=quantization_config,
+            low_cpu_mem_usage=True,
+            device_map=device,
+        )
+
+    dataset = load_dataset(args.prompts_path, split='train')
+    dataset = dataset.map(lambda example: {"model_name": model_name})
     dataset = dataset.map(
         lambda example: map_answer(example, model_path), 
         desc=f"{model_path.split('/')[1]}"

@@ -37,7 +37,8 @@ echo "Configuration loaded successfully!"
 echo "  NUM_SHOTS: $NUM_SHOTS"
 echo "  NUM_EXPERIMENTS: $NUM_EXPERIMENTS"
 echo "  RUN_ID: $RUN_ID"
-echo "  MULTI_GPU: $MULTI_GPU"
+echo "  MULTI_GPU_ENABLED: $MULTI_GPU_ENABLED"
+echo "  MULTI_GPU_NUM_GPUS: $MULTI_GPU_NUM_GPUS"
 echo "  UPDATE_LEADERBOARD: $UPDATE_LEADERBOARD"
 echo "  MODEL_PATHS: ${MODEL_PATHS[@]}"
 echo "  MODEL_CUSTOM_FLAGS: ${MODEL_CUSTOM_FLAGS[@]}"
@@ -77,13 +78,22 @@ echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"
 
 
 echo "Running answer generation..."
-python "${SCRIPT_DIR}/generate_answers.py" \
-  --prompts_path "${PROMPTS_PATH}" \
-  --answers_path "${ANSWERS_PATH}" \
-  --model_path "${MODEL_PATHS[@]}"
+if [ "$MULTI_GPU_ENABLED" = "true" ]; then
+    echo "Using multi-GPU with $MULTI_GPU_NUM_GPUS GPUs"
+    accelerate launch --num_processes="$MULTI_GPU_NUM_GPUS" "${SCRIPT_DIR}/generate_answers.py" \
+      --prompts_path "${PROMPTS_PATH}" \
+      --answers_path "${ANSWERS_PATH}" \
+      --model_path "${MODEL_PATHS[@]}" \
+      --use_accelerate
+else
+    echo "Using single GPU/CPU"
+    python "${SCRIPT_DIR}/generate_answers.py" \
+      --prompts_path "${PROMPTS_PATH}" \
+      --answers_path "${ANSWERS_PATH}" \
+      --model_path "${MODEL_PATHS[@]}"
+fi
 
 echo "Answer generation completed. Outputs saved to '${ANSWERS_PATH}'"
-exit 0
 
 # -------------------------
 # Evaluating Results
