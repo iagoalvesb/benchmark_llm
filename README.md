@@ -66,13 +66,13 @@ benchmark_names:
 - **run_id**: Identificador único para o experimento
 - **model_paths**: Lista de modelos do HuggingFace a avaliar
   - **path**: ID do modelo no HuggingFace
-  - **custom**: Se é modelo customizado (sempre false para modelos públicos)
-  - **tokenizer_path**: Tokenizer a usar (geralmente igual ao modelo)
-- **multi_gpu**: Configuração para usar múltiplas GPUs
-- **num_shots**: Quantidade de exemplos no contexto few-shot
+  - **custom**: Se é modelo é finetunado por nós (opcional)
+  - **tokenizer_path**: Tokenizer a usar caso o mesmo do modelo der problema (opcional)
+- **multi_gpu**: Configuração para usar múltiplas GPUs (opcional)
+- **num_shots**: Quantidade de exemplos no contexto few-shot (opcional)
 - **num_experiments**: Repetições por sample com diferentes few-shots
-- **update_leaderboard**: Se deve atualizar o leaderboard automaticamente
-- **benchmark_names**: Lista de benchmarks disponíveis em `src/UTILS_BENCHMARKS.py`
+- **update_leaderboard**: Se deve atualizar o leaderboard automaticamente (opcional)
+- **benchmark_names**: Lista de benchmarks disponíveis em `src/UTILS_BENCHMARKS.py` (opcional)
 
 
 ### Rodando por Docker
