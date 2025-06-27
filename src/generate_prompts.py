@@ -3,6 +3,7 @@ from datasets import load_dataset, Dataset, concatenate_datasets, Value
 import random
 import pandas as pd
 import torch
+import json
 
 import argparse
 
@@ -25,10 +26,19 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--tokenizer_path",
+    "--model_paths",
     type=str,
+    nargs='+',
     required=True,
-    help="Huggingface path to the tokenizer"
+    help="Model paths from configuration"
+)
+
+parser.add_argument(
+    "--model_tokenizers",
+    type=str,
+    nargs='+',
+    required=True,
+    help="Tokenizer paths for each model"
 )
 
 parser.add_argument(
@@ -54,9 +64,18 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+tokenizer_to_models = {}
+for model_path, tokenizer_path in zip(args.model_paths, args.model_tokenizers):
+    if tokenizer_path not in tokenizer_to_models:
+        tokenizer_to_models[tokenizer_path] = []
+    tokenizer_to_models[tokenizer_path].append(model_path)
 
-tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
-tokenizer.pad_token_id = tokenizer.eos_token_id
+tokenizers = {}
+for tokenizer_path in tokenizer_to_models.keys():
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizers[tokenizer_path] = tokenizer
+
 
 def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots, use_fixed_seed=args.use_fixed_seed, seed=42):
     possible_shots_indx = [i for i, example in enumerate(dataset_fewshot) if example['idx'] != id_query]
@@ -75,7 +94,6 @@ def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots, use_fixed_seed=ar
 
 def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_experiments=args.n_experiments):
     for i in range(n_experiments):
-
         shots, shot_id_benches = get_shots(example['idx'], dataset, n_shots, args.use_fixed_seed)
         example_informations = benchmark.get_prompt_informations(example)
 
@@ -88,8 +106,16 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
         chat.append({"role": "user", "content": example_informations['user_message']})
         chat.append({"role": "assistant", "content": example_informations['assistant_message_without_answer']})
 
-        prompt = tokenizer.apply_chat_template(chat, tokenize=False, continue_final_message=True)
-        example[f"prompt_{i}"] = prompt
+        # Generate prompts for each unique tokenizer
+        prompt_dict = {}
+        for tokenizer_path, tokenizer in tokenizers.items():
+            prompt = tokenizer.apply_chat_template(chat, tokenize=False, continue_final_message=True)
+            prompt_dict[tokenizer_path] = {
+                "prompt": prompt,
+                "models": tokenizer_to_models[tokenizer_path]
+            }
+        
+        example[f"prompt_{i}"] = json.dumps(prompt_dict, ensure_ascii=False)
         example[f"shot_indices_{i}"] = shot_id_benches
     return example
 
@@ -109,9 +135,8 @@ for benchmark_name in args.benchmark_names:
     else:
         dataset = dataset.filter(lambda x: all((x[col] is not None) and (x[col] != "") for col in x))
 
-    # dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
+    dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
     dataset = dataset.map(lambda example, idx: {"idx": int(idx)}, with_indices=True, desc="Adding index")
-
 
     # PADRONIZANDO TODOS OS BENCHMARKS
     if benchmark.label_column != "label":
@@ -124,16 +149,12 @@ for benchmark_name in args.benchmark_names:
     get_prompt_partial = partial(get_prompt, benchmark=benchmark, dataset_benchmark=dataset)
     dataset = dataset.map(get_prompt_partial, num_proc=64, desc=benchmark_name)
 
-
     prompt_exp_columns = [f"prompt_{i}" for i in range(args.n_experiments)]
     shot_indices_columns = [f"shot_indices_{i}" for i in range(args.n_experiments)]
     columns_to_maintain = ['label', "benchmark", "id_bench"] + prompt_exp_columns + shot_indices_columns
     columns_to_remove = [col for col in dataset.column_names if col not in columns_to_maintain]
     dataset = dataset.remove_columns(columns_to_remove)
     all_benchmarks.append(dataset)
-
-
-
 
 
 # --------------------------------------------------------------------------------
@@ -159,6 +180,5 @@ df['id'] = list(range(len(df)))
 column_order = ['id', 'id_bench', 'benchmark', 'prompt', 'shot_indices', 'label']
 df = df[column_order]
 dataset = Dataset.from_pandas(df)
-
 
 dataset.push_to_hub(args.prompts_path)

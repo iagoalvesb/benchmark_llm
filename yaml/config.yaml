@@ -1,0 +1,31 @@
+# Campos obrigatórios (Modelos do evaluation)
+run_id: "test_changes"
+model_paths:
+  - path: "Qwen/Qwen2.5-0.5B-Instruct"
+    custom: false
+    tokenizer_path: "Qwen/Qwen2.5-0.5B-Instruct"
+  - path: "Qwen/Qwen2.5-1.5B-Instruct"
+    custom: true
+    tokenizer_path: "Qwen/Qwen2.5-0.5B-Instruct"
+  - path: "meta-llama/Llama-3.2-3B-Instruct"
+    custom: false
+    tokenizer_path: "meta-llama/Llama-3.2-3B-Instruct"
+
+# Campos opcionais (Parâmetros do script)
+multi_gpu:
+  enabled: false
+  num_gpus: 1
+
+update_leaderboard: false
+num_shots: 5
+num_experiments: 3
+benchmark_names:
+  - "assin2rte"
+  - "assin2sts"
+  - "bluex"
+  - "enem"
+  - "hatebr"
+  - "portuguese_hate_speech"
+  - "faquad"
+  - "tweetsentbr"
+  - "oab"
