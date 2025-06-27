@@ -172,7 +172,14 @@ for model_path in args.model_path:
     dataset_exists = any(ds.id == args.answers_path for ds in possible_datasets)
 
     if dataset_exists:
-        original_dataset = load_dataset(args.answers_path, split='train')
+        for attempt in range(3):
+            try:
+                original_dataset = load_dataset(args.answers_path, split='train')
+                break
+            except Exception as e:
+                if attempt == 2:
+                    raise Exception(f"Failed to load existing dataset after 3 attempts: {e}")
+                print(f"Attempt {attempt + 1} failed, retrying...")
 
         current_benchmarks = set(dataset['benchmark'])
         filtered_dataset = original_dataset.filter(
