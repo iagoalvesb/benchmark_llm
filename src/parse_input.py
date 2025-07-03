@@ -2,6 +2,8 @@ import yaml
 import argparse
 import warnings
 from huggingface_hub import HfApi
+# import logging
+# from logger_config import init_logger
 
 def parse_yaml_config(yaml_file):
     try:
@@ -50,6 +52,7 @@ def get_config_with_defaults(yaml_config):
             'enabled': False,
             'num_gpus': 1
         },
+        'flash_attention': False,
         'update_leaderboard': False,
         'benchmark_names': [
             "assin2rte",
@@ -112,6 +115,7 @@ def generate_bash_variables(config):
     bash_vars.append(f'RUN_ID="{config["run_id"]}"')
     bash_vars.append(f'MULTI_GPU_ENABLED={str(config["multi_gpu"]["enabled"]).lower()}')
     bash_vars.append(f'MULTI_GPU_NUM_GPUS={config["multi_gpu"]["num_gpus"]}')
+    bash_vars.append(f'FLASH_ATTENTION_ENABLED={str(config["flash_attention"]).lower()}')  # Add flash attention variable
     bash_vars.append(f'UPDATE_LEADERBOARD={str(config["update_leaderboard"]).lower()}')
     bash_vars.append('MODEL_PATHS=(')
     for model in config['model_paths']:
@@ -140,6 +144,7 @@ def main():
     parser = argparse.ArgumentParser(description='Parse YAML configuration for run.sh script')
     parser.add_argument('config_file')
     args = parser.parse_args()
+    # init_logger()
     
     yaml_config = parse_yaml_config(args.config_file)
     config = get_config_with_defaults(yaml_config)

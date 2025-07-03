@@ -78,6 +78,9 @@ for tokenizer_path in tokenizer_to_models.keys():
 
 
 def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots, use_fixed_seed=args.use_fixed_seed, seed=42):
+    if n_shots == 0:
+        return [], []
+    
     possible_shots_indx = [i for i, example in enumerate(dataset_fewshot) if example['idx'] != id_query]
     
     if use_fixed_seed:
@@ -98,10 +101,12 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
         example_informations = benchmark.get_prompt_informations(example)
 
         chat = [{"role": "system", "content": example_informations['base_system_message']}]
-        for shot in shots:
-            shot_informations = benchmark.get_prompt_informations(shot)
-            chat.append({"role": "user", "content": shot_informations['user_message']})
-            chat.append({"role": "assistant", "content": shot_informations['assistant_message_with_answer']})
+        
+        if shots:
+            for shot in shots:
+                shot_informations = benchmark.get_prompt_informations(shot)
+                chat.append({"role": "user", "content": shot_informations['user_message']})
+                chat.append({"role": "assistant", "content": shot_informations['assistant_message_with_answer']})
 
         chat.append({"role": "user", "content": example_informations['user_message']})
         chat.append({"role": "assistant", "content": example_informations['assistant_message_without_answer']})

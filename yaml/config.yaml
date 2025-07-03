@@ -5,17 +5,21 @@ model_paths:
     custom: false
     tokenizer_path: "Qwen/Qwen2.5-0.5B-Instruct"
   - path: "Qwen/Qwen2.5-1.5B-Instruct"
-    custom: true
+    custom: false
     tokenizer_path: "Qwen/Qwen2.5-0.5B-Instruct"
   - path: "meta-llama/Llama-3.2-3B-Instruct"
     custom: false
     tokenizer_path: "meta-llama/Llama-3.2-3B-Instruct"
+  - path: "google/gemma-3-4b-it"
+    custom: false
+    tokenizer_path: "google/gemma-3-4b-it"
 
 # Campos opcionais (Parâmetros do script)
 multi_gpu:
   enabled: false
   num_gpus: 1
 
+flash_attention: false
 update_leaderboard: false
 num_shots: 5
 num_experiments: 3
@@ -26,6 +30,7 @@ benchmark_names:
   - "enem"
   - "hatebr"
   - "portuguese_hate_speech"
+  - "toxsyn_pt"
   - "faquad"
   - "tweetsentbr"
   - "oab"

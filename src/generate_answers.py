@@ -6,6 +6,8 @@ import argparse
 import json
 from accelerate import Accelerator
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
+import logging
+from logger_config import init_logger
 import re
 
 parser = argparse.ArgumentParser()
@@ -38,16 +40,24 @@ parser.add_argument(
     help="Use Accelerate for multi-GPU inference"
 )
 
+parser.add_argument(
+    "--use_flash_attention",
+    action="store_true",
+    help="Enable Flash Attention 2 for faster inference"
+)
+
 args = parser.parse_args()
+
+init_logger()
 
 if args.use_accelerate:
     accelerator = Accelerator()
     device = accelerator.device
-    print(f"Using Accelerate with device: {device}")
+    logging.info(f"Using Accelerate with device: {device}")
 else:
     accelerator = None
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Using single device: {device}")
+    logging.info(f"Usando single device: {device}")
 
 def get_prompt_for_model(prompt_json_str, model_path):
     try:
@@ -137,7 +147,7 @@ possible_datasets = list_datasets(search=args.answers_path)
 dataset_exists = any(ds.id == args.answers_path for ds in possible_datasets)
 
 for model_path in args.model_path:
-    print(f"\n** RUNNING MODEL: {model_path}")
+    logging.info(f"\n** RUNNING MODEL: {model_path}")
     model_name = model_path.split("/")[-1]
     current_model_path = model_path
 
@@ -146,18 +156,30 @@ for model_path in args.model_path:
     quantization_config = BitsAndBytesConfig(load_in_8bit=True)
 
     if args.use_accelerate:
+        model_kwargs = {
+            "quantization_config": quantization_config,
+            "low_cpu_mem_usage": True,
+        }
+        if args.use_flash_attention:
+            model_kwargs["attn_implementation"] = "flash_attention_2"
+
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            quantization_config=quantization_config,
-            low_cpu_mem_usage=True,
+            **model_kwargs
         )
         model = accelerator.prepare(model)
     else:
+        model_kwargs = {
+            "quantization_config": quantization_config,
+            "low_cpu_mem_usage": True,
+            "device_map": device,
+        }
+        if args.use_flash_attention:
+            model_kwargs["attn_implementation"] = "flash_attention_2"
+
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            quantization_config=quantization_config,
-            low_cpu_mem_usage=True,
-            device_map=device,
+            **model_kwargs
         )
 
     dataset = load_dataset(args.prompts_path, split='train')
@@ -179,7 +201,7 @@ for model_path in args.model_path:
             except Exception as e:
                 if attempt == 2:
                     raise Exception(f"Failed to load existing dataset after 3 attempts: {e}")
-                print(f"Attempt {attempt + 1} failed, retrying...")
+                logging.info(f"Tentativa {attempt + 1} falhou, retrying...")
 
         current_benchmarks = set(dataset['benchmark'])
         filtered_dataset = original_dataset.filter(
@@ -196,10 +218,10 @@ for model_path in args.model_path:
     )
 
     full_dataset.push_to_hub(args.answers_path)
-    print(f"\n**SAVED MODEL {model_name} AT: {args.answers_path}")
+    logging.info(f"\n**SAVED MODEL {model_name} AT: {args.answers_path}")
 
     del model
     del tokenizer
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
-print(f"\n\n**ALL MODELS SAVED AT: {args.answers_path}")
+logging.info(f"\n\n**ALL MODELS SAVED AT: {args.answers_path}")
