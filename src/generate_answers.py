@@ -153,11 +153,10 @@ for model_path in args.model_path:
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer.pad_token_id = tokenizer.eos_token_id
-    quantization_config = BitsAndBytesConfig(load_in_8bit=True)
 
     if args.use_accelerate:
         model_kwargs = {
-            "quantization_config": quantization_config,
+            "torch_dtype": torch.bfloat16,
             "low_cpu_mem_usage": True,
         }
         if args.use_flash_attention:
@@ -170,7 +169,7 @@ for model_path in args.model_path:
         model = accelerator.prepare(model)
     else:
         model_kwargs = {
-            "quantization_config": quantization_config,
+            "torch_dtype": torch.bfloat16,
             "low_cpu_mem_usage": True,
             "device_map": device,
         }
