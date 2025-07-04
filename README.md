@@ -86,7 +86,7 @@ benchmark_names:
 ### Problemas a serem resolvidos
 
 Os problemas da aplicação para serem resolvidos depois são:
-- O Gemma3 tem problemas com o KV Cache dele. Uma solução temporaria é aumentar `torch._dynamo.config.cache_size_limit` para uns 512, mas isso pode fazer o eval demorar uns 10x mais para terminar e degradar performance.
+- O Gemma3 tem problemas com o KV Cache dele. Uma solução temporaria é aumentar `torch._dynamo.config.cache_size_limit`, mas isso pode fazer o eval demorar uns 10x mais para terminar e degradar performance.
 
 
 ### Proximo Release
