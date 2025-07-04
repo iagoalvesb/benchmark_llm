@@ -6,8 +6,8 @@
 - [Configuração](#configuração)
 - [Parâmetros](#parâmetros)
 - [Rodando por Docker](#rodando-por-docker)
-- [Modelos Testados](#modelos-testados)
 - [Problemas a serem resolvidos](#problemas-a-serem-resolvidos)
+- [Proximo Release](#proximo-release)
 
 
 ### Como Rodar
@@ -43,6 +43,7 @@ multi_gpu:
   num_gpus: 1
 
 # Parâmetros do evaluation
+flash_attention: false # Se é para usar FA2 ou não
 num_shots: 5           # Quantidade de exemplos no few-shot
 num_experiments: 3     # Número de experimentos por sample
 update_leaderboard: false  # Atualizar leaderboard ao final
@@ -69,6 +70,7 @@ benchmark_names:
   - **custom**: Se é modelo é finetunado por nós (opcional)
   - **tokenizer_path**: Tokenizer a usar caso o mesmo do modelo der problema (opcional)
 - **multi_gpu**: Configuração para usar múltiplas GPUs (opcional)
+- **flash_attention**: Se é para usar FA2 ou não (opcional)
 - **num_shots**: Quantidade de exemplos no contexto few-shot (opcional)
 - **num_experiments**: Repetições por sample com diferentes few-shots
 - **update_leaderboard**: Se deve atualizar o leaderboard automaticamente (opcional)
@@ -91,4 +93,5 @@ Os problemas da aplicação para serem resolvidos depois são:
 
 Para a próxima versão:
 - Criar uma flag para ter a opção de rodar tudo localmente
+- Update requirements.txt with new libs
 

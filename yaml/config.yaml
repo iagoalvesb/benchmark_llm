@@ -1,18 +1,15 @@
 # Campos obrigatórios (Modelos do evaluation)
-run_id: "test_changes"
+run_id: "my_run"
 model_paths:
-  - path: "Qwen/Qwen2.5-0.5B-Instruct"
+  - path: "Qwen/Qwen2.5-3B-Instruct"
     custom: false
-    tokenizer_path: "Qwen/Qwen2.5-0.5B-Instruct"
-  - path: "Qwen/Qwen2.5-1.5B-Instruct"
+    tokenizer_path: "Qwen/Qwen2.5-3B-Instruct"
+  - path: "Qwen/Qwen3-4B"
     custom: false
-    tokenizer_path: "Qwen/Qwen2.5-0.5B-Instruct"
+    tokenizer_path: "Qwen/Qwen3-4B"
   - path: "meta-llama/Llama-3.2-3B-Instruct"
     custom: false
     tokenizer_path: "meta-llama/Llama-3.2-3B-Instruct"
-  - path: "google/gemma-3-4b-it"
-    custom: false
-    tokenizer_path: "google/gemma-3-4b-it"
 
 # Campos opcionais (Parâmetros do script)
 multi_gpu:
