@@ -89,7 +89,12 @@ def generate_answer(prompt_text):
     return generated_text
 
 def parse_yes_no(text):
-    # Extract the first character of the answer
+    text_lower = text.lower()
+    if "sim" in text_lower:
+        return "1"
+    elif "não" in text_lower:
+        return "0"
+
     text = text.strip()[0].upper()
     answer = 1 if text == 'S' else 0 if text == 'N' else None
     if answer is None:
@@ -106,6 +111,7 @@ def parse_multiple_choice_full_word(text):
     stripped_text = text.strip()
     words = stripped_text.split()
     first_word = words[0].capitalize() # Capitalize the first word just in case
+    first_word = words[0].rstrip('.,!?;:').capitalize()
     return first_word
 
 def parse_continue_value(text):

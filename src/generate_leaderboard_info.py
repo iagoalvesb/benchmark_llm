@@ -207,6 +207,7 @@ if __name__ == "__main__":
 
     results_df = pd.DataFrame(all_results)
     results_df = add_additional_info(results_df) # Lucas pediu para ter isso aqui
+    results_df = results_df.drop_duplicates(subset=['Modelo'], keep='last')
 
     if args.save_csv:
         output_csv_path = "leaderboard_results_test.csv"
