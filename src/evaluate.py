@@ -5,6 +5,8 @@ from scipy.stats import pearsonr
 from huggingface_hub import list_datasets
 import argparse
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
+import logging
+from logger_config import init_logger
 
 
 parser = argparse.ArgumentParser()
@@ -25,6 +27,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+init_logger()
 
 eval_dataset = list_datasets(search=args.eval_path)
 eval_dataset_exists = any(ds.id == args.eval_path for ds in eval_dataset)
@@ -96,4 +99,4 @@ if eval_dataset_exists:
 
 results_dataset.push_to_hub(args.eval_path)
 
-print(f"\n\n** EVALUATION RESULTS SAVED AT: {args.eval_path}")
+logging.info(f"\n\n** EVALUATION RESULTS SAVED AT: {args.eval_path}")

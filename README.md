@@ -1,4 +1,4 @@
-# Rodando Evals (v1.0.0)
+# Rodando Evals (v1.0.1)
 
 
 ## Índice
@@ -6,8 +6,8 @@
 - [Configuração](#configuração)
 - [Parâmetros](#parâmetros)
 - [Rodando por Docker](#rodando-por-docker)
-- [Modelos Testados](#modelos-testados)
 - [Problemas a serem resolvidos](#problemas-a-serem-resolvidos)
+- [Proximo Release](#proximo-release)
 
 
 ### Como Rodar
@@ -43,6 +43,7 @@ multi_gpu:
   num_gpus: 1
 
 # Parâmetros do evaluation
+flash_attention: false # Se é para usar FA2 ou não
 num_shots: 5           # Quantidade de exemplos no few-shot
 num_experiments: 3     # Número de experimentos por sample
 update_leaderboard: false  # Atualizar leaderboard ao final
@@ -69,6 +70,7 @@ benchmark_names:
   - **custom**: Se é modelo é finetunado por nós (opcional)
   - **tokenizer_path**: Tokenizer a usar caso o mesmo do modelo der problema (opcional)
 - **multi_gpu**: Configuração para usar múltiplas GPUs (opcional)
+- **flash_attention**: Se é para usar FA2 ou não (opcional)
 - **num_shots**: Quantidade de exemplos no contexto few-shot (opcional)
 - **num_experiments**: Repetições por sample com diferentes few-shots
 - **update_leaderboard**: Se deve atualizar o leaderboard automaticamente (opcional)
@@ -77,25 +79,19 @@ benchmark_names:
 
 ### Rodando por Docker
 
-**Build**: `docker build -f .devcontainer/Dockerfile -t energygpt-eval ..`  
+**Build**: `docker build -f .devcontainer/Dockerfile -t energygpt-eval ..`
 **Run**: `docker run --rm --gpus=all --env-file .env energygpt-eval`
 
 
-### Modelos Testados
+### Problemas a serem resolvidos
 
-Um número de modelos foram testados para assegurar que funcionam com a pipeline atual. Pode acontecer de certos modelos apresentarem problemas. Com cada fix mais modelos serão testados.
-
-Os modelos testados atê então são:
-- Qwen2.5
-- Qwen3
-- Llama 3.2
-- Llama 3.1
+Os problemas da aplicação para serem resolvidos depois são:
+- O Gemma3 tem problemas com o KV Cache dele. Uma solução temporaria é aumentar `torch._dynamo.config.cache_size_limit` para uns 512, mas isso pode fazer o eval demorar uns 10x mais para terminar e degradar performance.
 
 
-### Problemas a Serem Resolvidos
+### Proximo Release
 
-Para a v1.0.1
-- Arrumar problema onde sem nenhum fewshot o código dá erro (fix estimado para dia 30 de junho)
-- Param para habilitar ou desabilitar flash attention se for usar na B200
-- Logging mais robusto e organizado
-- Entender o porque do Gemma não funcionar e testar outros modelos abaixo de 14B
+Para a próxima versão:
+- Criar uma flag para ter a opção de rodar tudo localmente
+- Update requirements.txt with new libs
+

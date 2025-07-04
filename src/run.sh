@@ -39,6 +39,7 @@ echo "  NUM_EXPERIMENTS: $NUM_EXPERIMENTS"
 echo "  RUN_ID: $RUN_ID"
 echo "  MULTI_GPU_ENABLED: $MULTI_GPU_ENABLED"
 echo "  MULTI_GPU_NUM_GPUS: $MULTI_GPU_NUM_GPUS"
+echo "  FLASH_ATTENTION_ENABLED: $FLASH_ATTENTION_ENABLED"
 echo "  UPDATE_LEADERBOARD: $UPDATE_LEADERBOARD"
 echo "  MODEL_PATHS: ${MODEL_PATHS[@]}"
 echo "  MODEL_CUSTOM_FLAGS: ${MODEL_CUSTOM_FLAGS[@]}"
@@ -49,8 +50,8 @@ echo "  MODEL_TOKENIZERS: ${MODEL_TOKENIZERS[@]}"
 # -------------------------
 
 PROMPTS_PATH="pt-eval/prompts_${RUN_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
-ANSWERS_PATH="pt-eval/answers_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
-EVALUATION_PATH="pt-eval/eval_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+ANSWERS_PATH="pt-eval/answers_${RUN_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
+EVALUATION_PATH="pt-eval/eval_${RUN_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 
 # ---------------------------------------------------------------------------------------------------------------
 # ------------------------- RUNNING SCRIPTS TO GENERATE PROMPTS, ANSWERS AND EVALUATION -------------------------
@@ -80,17 +81,27 @@ echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"
 echo "Running answer generation..."
 if [ "$MULTI_GPU_ENABLED" = "true" ]; then
     echo "Using multi-GPU with $MULTI_GPU_NUM_GPUS GPUs"
+    FLASH_ATTENTION_FLAG=""
+    if [ "$FLASH_ATTENTION_ENABLED" = "true" ]; then
+        FLASH_ATTENTION_FLAG="--use_flash_attention"
+    fi
     accelerate launch --num_processes="$MULTI_GPU_NUM_GPUS" "${SCRIPT_DIR}/generate_answers.py" \
       --prompts_path "${PROMPTS_PATH}" \
       --answers_path "${ANSWERS_PATH}" \
       --model_path "${MODEL_PATHS[@]}" \
-      --use_accelerate
+      --use_accelerate \
+      $FLASH_ATTENTION_FLAG
 else
     echo "Using single GPU/CPU"
+    FLASH_ATTENTION_FLAG=""
+    if [ "$FLASH_ATTENTION_ENABLED" = "true" ]; then
+        FLASH_ATTENTION_FLAG="--use_flash_attention"
+    fi
     python "${SCRIPT_DIR}/generate_answers.py" \
       --prompts_path "${PROMPTS_PATH}" \
       --answers_path "${ANSWERS_PATH}" \
-      --model_path "${MODEL_PATHS[@]}"
+      --model_path "${MODEL_PATHS[@]}" \
+      $FLASH_ATTENTION_FLAG
 fi
 
 echo "Answer generation completed. Outputs saved to '${ANSWERS_PATH}'"
@@ -115,7 +126,7 @@ if [ "$UPDATE_LEADERBOARD" = "true" ]; then
     echo "Updating leaderboard..."
     python "${SCRIPT_DIR}/generate_leaderboard_info.py" \
       --benchmarks-file "${EVALUATION_PATH}" \
-      --output-repo "pt-eval/leaderboard" \
+      --output-repo "pt-eval/leaderboard_testing" \
       --model-paths "${MODEL_PATHS[@]}" \
       --custom-flags "${MODEL_CUSTOM_FLAGS[@]}"
     echo "Leaderboard updated successfully!"

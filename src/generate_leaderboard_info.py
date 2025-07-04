@@ -3,6 +3,8 @@ import pandas as pd
 import warnings
 from huggingface_hub import HfApi, list_datasets
 from datasets import load_dataset, Dataset, concatenate_datasets
+import logging
+from logger_config import init_logger
 from utils import BENCHMARK_TO_AREA, BENCHMARK_TO_COLUMN, BENCHMARK_TO_METRIC, MODEL_PARAMS, add_additional_info
 
 def parse_args():
@@ -38,6 +40,7 @@ def compute_score(row, benchmark):
 
 if __name__ == "__main__":
     args = parse_args()
+    init_logger()
 
     try:
         dataset = load_dataset(args.benchmarks_file, split='train')
@@ -81,10 +84,10 @@ if __name__ == "__main__":
 
     for model_name in model_names:
         if model_name in models_to_skip:
-            print(f"Pulando o modelo {model_name} (já existe, overwrite está como False)")
+            logging.info(f"Pulando o modelo {model_name} (já existe, overwrite está como False)")
             continue
 
-        print(f"Processando o modelo {model_name}")
+        logging.info(f"Processando o modelo {model_name}")
         model_df = df[df['model_name'] == model_name]
         model_params = MODEL_PARAMS.get(model_name, {})
 
@@ -223,8 +226,8 @@ if __name__ == "__main__":
             combined_dataset = concatenate_datasets([existing_dataset, Dataset.from_pandas(results_df)])
 
         combined_dataset.push_to_hub(args.output_repo)
-        print(f"Atualizou resultados com {len(results_df)} modelos novos")
+        logging.info(f"Atualizou resultados com {len(results_df)} modelos novos")
     else:
         new_dataset = Dataset.from_pandas(results_df)
         new_dataset.push_to_hub(args.output_repo)
-        print(f"Repo criado com {len(results_df)} modelos")
+        logging.info(f"Repo criado com {len(results_df)} modelos")
