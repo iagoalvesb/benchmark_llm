@@ -207,7 +207,6 @@ if __name__ == "__main__":
 
     results_df = pd.DataFrame(all_results)
     results_df = add_additional_info(results_df) # Lucas pediu para ter isso aqui
-    results_df = results_df.drop_duplicates(subset=['Modelo'], keep='last')
 
     if args.save_csv:
         output_csv_path = "leaderboard_results_test.csv"
@@ -222,6 +221,7 @@ if __name__ == "__main__":
             filtered_df = existing_df[~existing_df['Modelo'].isin(new_model_names)]
 
             combined_df = pd.concat([filtered_df, results_df], ignore_index=True)
+            combined_df = combined_df.drop_duplicates(subset=['Modelo'], keep='last')
             combined_dataset = Dataset.from_pandas(combined_df)
         else:
             combined_dataset = concatenate_datasets([existing_dataset, Dataset.from_pandas(results_df)])
