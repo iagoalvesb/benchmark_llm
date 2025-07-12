@@ -14,6 +14,7 @@ RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/conda/lib/libcudart.so' >
 RUN /opt/conda/bin/pip install transformers==4.52.4
 RUN /opt/conda/bin/pip install datasets==3.1.0
 RUN /opt/conda/bin/pip install torch==2.7.1
+RUN /opt/conda/bin/pip install torchvision==0.22.1
 RUN /opt/conda/bin/pip install huggingface-hub==0.33.0
 RUN /opt/conda/bin/pip install bitsandbytes==0.45.5
 RUN /opt/conda/bin/pip install pandas==2.2.3
