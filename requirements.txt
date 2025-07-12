@@ -9,3 +9,4 @@ pyarrow==18.0.0
 scikit-learn==1.5.2
 accelerate==1.1.0
 hf_xet==1.1.2
+flash-attn==2.8.0.post2
