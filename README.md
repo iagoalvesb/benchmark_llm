@@ -21,7 +21,8 @@ src/run.sh yaml/config.yaml
 
 ### Configuração
 
-Crie um arquivo YAML de configuração baseado no exemplo abaixo:
+1. Crie um .env com um token do huggingface (HUGGINGFACE_TOKEN)
+2. Crie um arquivo YAML de configuração baseado no exemplo abaixo:
 
 #### yaml/config.example.yaml
 ```yaml

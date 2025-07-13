@@ -177,7 +177,7 @@ for model_path in args.model_path:
         model_kwargs = {
             "torch_dtype": torch.bfloat16,
             "low_cpu_mem_usage": True,
-            "device_map": device,
+            "device_map": "auto",
         }
         if args.use_flash_attention:
             model_kwargs["attn_implementation"] = "flash_attention_2"

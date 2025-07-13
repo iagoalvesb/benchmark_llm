@@ -11,23 +11,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/conda/lib/libcudart.so' >> ~/.bashrc
 
-RUN /opt/conda/bin/pip install bitsandbytes
-RUN /opt/conda/bin/pip install transformers
-RUN /opt/conda/bin/pip install accelerate
-RUN /opt/conda/bin/pip install datasets
-RUN /opt/conda/bin/pip install huggingface-hub
-RUN /opt/conda/bin/pip install pandas
-RUN /opt/conda/bin/pip install scipy
-RUN /opt/conda/bin/pip install pyarrow
-RUN /opt/conda/bin/pip install scikit-learn
+RUN /opt/conda/bin/pip install transformers==4.52.4
+RUN /opt/conda/bin/pip install datasets==3.1.0
+RUN /opt/conda/bin/pip install torch==2.7.1
+RUN /opt/conda/bin/pip install torchvision==0.22.1
+RUN /opt/conda/bin/pip install huggingface-hub==0.33.0
+RUN /opt/conda/bin/pip install bitsandbytes==0.45.5
+RUN /opt/conda/bin/pip install pandas==2.2.3
+RUN /opt/conda/bin/pip install scipy==1.15.1
+RUN /opt/conda/bin/pip install pyarrow==18.0.0
+RUN /opt/conda/bin/pip install scikit-learn==1.5.2
+RUN /opt/conda/bin/pip install accelerate==1.1.0
+RUN /opt/conda/bin/pip install hf_xet==1.1.2
+RUN /opt/conda/bin/pip install flash-attn==2.8.0.post2
 
 # COPY requirements.txt /app/
 # RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . /app/
 
-WORKDIR /app/aksjlmklsdjf/src
+WORKDIR /app/aksjlmklsdjf
 
-RUN chmod +x run.sh
+RUN chmod +x src/run.sh
 
-CMD ["/bin/bash", "run.sh"]
+CMD ["/bin/bash", "src/run.sh", "yaml/config.yaml"]

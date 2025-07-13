@@ -128,7 +128,8 @@ if [ "$UPDATE_LEADERBOARD" = "true" ]; then
       --benchmarks-file "${EVALUATION_PATH}" \
       --output-repo "pt-eval/leaderboard_testing" \
       --model-paths "${MODEL_PATHS[@]}" \
-      --custom-flags "${MODEL_CUSTOM_FLAGS[@]}"
+      --custom-flags "${MODEL_CUSTOM_FLAGS[@]}" \
+      --overwrite
     echo "Leaderboard updated successfully!"
 else
     echo "Skipping leaderboard update (UPDATE_LEADERBOARD=false)"

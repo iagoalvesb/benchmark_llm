@@ -5,6 +5,7 @@ from scipy.stats import pearsonr
 from huggingface_hub import list_datasets
 import argparse
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
+from utils import BENCHMARK_TO_METRIC
 import logging
 from logger_config import init_logger
 
@@ -74,7 +75,7 @@ for model_name in df['model_name'].unique():
             recall    = None
             f1        = None
             corr, p_value = pearsonr(y_true, y_pred)
-        
+
         # Store results in a list of dicts
         metrics_list.append({
             'model_name': model_name,
@@ -100,3 +101,40 @@ if eval_dataset_exists:
 results_dataset.push_to_hub(args.eval_path)
 
 logging.info(f"\n\n** EVALUATION RESULTS SAVED AT: {args.eval_path}")
+
+# Criar print no CLI dos resultados (forma simples)
+metrics_data = []
+parsing_data = []
+
+for model_name in results_df['model_name'].unique():
+    model_metrics = {'Model': model_name}
+    model_parsing = {'Model': model_name}
+    model_df = results_df[results_df['model_name'] == model_name]
+
+    for _, row in model_df.iterrows():
+        benchmark = row['benchmark']
+        metric_name = BENCHMARK_TO_METRIC.get(benchmark, ['accuracy'])[0]
+
+        metric_value = row[metric_name] if row[metric_name] is not None else 0.0
+        model_metrics[benchmark] = round(metric_value, 3)
+        model_parsing[benchmark] = round(row['non_parsed_rate'], 3)
+
+    metrics_data.append(model_metrics)
+    parsing_data.append(model_parsing)
+
+metrics_df = pd.DataFrame(metrics_data)
+parsing_df = pd.DataFrame(parsing_data)
+
+benchmark_columns = [col for col in metrics_df.columns if col != 'Model']
+metrics_df['avg'] = metrics_df[benchmark_columns].mean(axis=1).round(3)
+
+with pd.option_context('display.max_columns', None, 'display.width', None):
+    print("\n" + "="*80)
+    print("** METRICAS DE PERFORMANCE **")
+    print("="*80)
+    print(metrics_df)
+    print("\n" + "="*80)
+    print("** TAXA DE ERRO DE PARSING **")
+    print("="*80)
+    print(parsing_df)
+    print("="*80)
