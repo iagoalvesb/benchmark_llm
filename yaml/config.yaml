@@ -16,6 +16,7 @@ multi_gpu:
   enabled: false
   num_gpus: 1
 
+run_local: true
 flash_attention: false
 update_leaderboard: false
 num_shots: 5

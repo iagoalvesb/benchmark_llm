@@ -1,4 +1,4 @@
-# Rodando Evals (v1.0.1)
+# Rodando Evals (v1.1.0)
 
 
 ## Índice
@@ -44,6 +44,7 @@ multi_gpu:
   num_gpus: 1
 
 # Parâmetros do evaluation
+run_local: true        # Se é para salvar os resultados localmente
 flash_attention: false # Se é para usar FA2 ou não
 num_shots: 5           # Quantidade de exemplos no few-shot
 num_experiments: 3     # Número de experimentos por sample
@@ -65,16 +66,17 @@ benchmark_names:
 
 ### Parâmetros
 
-- **run_id**: Identificador único para o experimento
-- **model_paths**: Lista de modelos do HuggingFace a avaliar
-  - **path**: ID do modelo no HuggingFace
-  - **custom**: Se é modelo é finetunado por nós (opcional)
-  - **tokenizer_path**: Tokenizer a usar caso o mesmo do modelo der problema (opcional)
-- **multi_gpu**: Configuração para usar múltiplas GPUs (opcional)
-- **flash_attention**: Se é para usar FA2 ou não (opcional)
-- **num_shots**: Quantidade de exemplos no contexto few-shot (opcional)
-- **num_experiments**: Repetições por sample com diferentes few-shots
-- **update_leaderboard**: Se deve atualizar o leaderboard automaticamente (opcional)
+- **run_id**: Identificador único para o experimento *(obrigatório)*
+- **model_paths**: Lista de modelos do HuggingFace a avaliar *(obrigatório)*
+  - **path**: ID do modelo no HuggingFace *(obrigatório)*
+  - **custom**: Se é modelo é finetunado por nós (opcional, default: `false`)
+  - **tokenizer_path**: Tokenizer a usar caso o mesmo do modelo der problema (opcional, default: mesmo que `path`)
+- **multi_gpu**: Configuração para usar múltiplas GPUs (opcional, default: `{"enabled": false, "num_gpus": 1}`)
+- **run_local**: Se é para rodar localmente ou não (opcional, default: `false`)
+- **flash_attention**: Se é para usar FA2 ou não (opcional, default: `false`)
+- **num_shots**: Quantidade de exemplos no contexto few-shot (opcional, default: `5`)
+- **num_experiments**: Repetições por sample com diferentes few-shots (opcional, default: `3`)
+- **update_leaderboard**: Se deve atualizar o leaderboard automaticamente (opcional, default: `false`)
 - **benchmark_names**: Lista de benchmarks disponíveis em `src/UTILS_BENCHMARKS.py` (opcional)
 
 
