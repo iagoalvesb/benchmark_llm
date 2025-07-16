@@ -4,8 +4,9 @@ import warnings
 from huggingface_hub import HfApi, list_datasets
 from datasets import load_dataset, Dataset, concatenate_datasets
 import logging
+import os
 from logger_config import init_logger
-from utils import BENCHMARK_TO_AREA, BENCHMARK_TO_COLUMN, BENCHMARK_TO_METRIC, MODEL_PARAMS, add_additional_info
+from utils import BENCHMARK_TO_AREA, BENCHMARK_TO_COLUMN, BENCHMARK_TO_METRIC, MODEL_PARAMS, add_additional_info, clean_index_columns
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -23,6 +24,8 @@ def parse_args():
                         help="If True, overwrite existing model results")
     parser.add_argument('--save-csv', action='store_true',
                         help="If set, save the final results to a CSV file")
+    parser.add_argument('--run_local', action='store_true',
+                        help="If set, read/save results locally as CSV instead of using HuggingFace Hub")
     return parser.parse_args()
 
 def compute_score(row, benchmark):
@@ -42,11 +45,25 @@ if __name__ == "__main__":
     args = parse_args()
     init_logger()
 
-    try:
-        dataset = load_dataset(args.benchmarks_file, split='train')
-        df = dataset.to_pandas()
-    except:
-        df = pd.read_csv(args.benchmarks_file)
+    if args.run_local:
+        benchmarks_filename = args.benchmarks_file.replace("/", "_").replace("-", "_") + ".csv"
+        benchmarks_filepath = os.path.join("eval_processing", benchmarks_filename)
+        
+        if not os.path.exists(benchmarks_filepath):
+            raise FileNotFoundError(f"Benchmarks file not found: {benchmarks_filepath}")
+        
+        df = pd.read_csv(benchmarks_filepath)
+        df = clean_index_columns(df)
+        logging.info(f"Loaded benchmarks from local file: {benchmarks_filepath}")
+    else:
+        try:
+            dataset = load_dataset(args.benchmarks_file, split='train')
+            df = dataset.to_pandas()
+            logging.info(f"Loaded benchmarks from HuggingFace Hub: {args.benchmarks_file}")
+        except:
+            df = pd.read_csv(args.benchmarks_file)
+            df = clean_index_columns(df)
+            logging.info(f"Loaded benchmarks from CSV file: {args.benchmarks_file}")
 
     df['score'] = df.apply(lambda r: compute_score(r, r['benchmark']), axis=1)
 
@@ -66,13 +83,26 @@ if __name__ == "__main__":
     model_names = df['model_name'].unique()
 
     api = HfApi()
-    possible_datasets = list_datasets(search=args.output_repo)
-    dataset_exists = any(ds.id == args.output_repo for ds in possible_datasets)
-
     models_to_skip = set()
-    if dataset_exists and not args.overwrite:
-        existing_dataset = load_dataset(args.output_repo, split='train')
-        models_to_skip = set(existing_dataset['Modelo'])
+    actually_processed = []
+    if args.run_local:
+        leaderboard_filename = args.output_repo.replace("/", "_").replace("-", "_") + ".csv"
+        leaderboard_filepath = os.path.join("leaderboard_results", leaderboard_filename)
+        dataset_exists = os.path.exists(leaderboard_filepath)
+        
+        if dataset_exists and not args.overwrite:
+            existing_df = pd.read_csv(leaderboard_filepath)
+            existing_df = clean_index_columns(existing_df)
+            models_to_skip = set(existing_df['Modelo'])
+            logging.info(f"Found existing leaderboard data: {leaderboard_filepath}")
+    else:
+        possible_datasets = list_datasets(search=args.output_repo)
+        dataset_exists = any(ds.id == args.output_repo for ds in possible_datasets)
+
+        if dataset_exists and not args.overwrite:
+            existing_dataset = load_dataset(args.output_repo, split='train')
+            models_to_skip = set(existing_dataset['Modelo'])
+            logging.info(f"Found existing leaderboard data on HuggingFace Hub: {args.output_repo}")
 
     custom_flag_mapping = {}
     if args.custom_flags and args.model_paths:
@@ -82,11 +112,21 @@ if __name__ == "__main__":
         else:
             warnings.warn(f"Custom flags count ({len(args.custom_flags)}) doesn't match model paths count ({len(args.model_paths)})")
 
+    skipped_existing = []
+    skipped_not_run = []
     for model_name in model_names:
         if model_name in models_to_skip:
+            skipped_existing.append(model_name)
             logging.info(f"Pulando o modelo {model_name} (já existe, overwrite está como False)")
             continue
 
+        model_params = MODEL_PARAMS.get(model_name, {})
+        if 'model_id' not in model_params:
+            skipped_not_run.append(model_name)
+            logging.info(f"Modelo {model_name} não foi executado nesta rodada, pulando processamento de metadados")
+            continue
+
+        actually_processed.append(model_name)  # Track what we actually process
         logging.info(f"Processando o modelo {model_name}")
         model_df = df[df['model_name'] == model_name]
         model_params = MODEL_PARAMS.get(model_name, {})
@@ -99,7 +139,7 @@ if __name__ == "__main__":
         arquiteturas = []
         precisao = None
         params_B = 0
-        t = "Base"
+        t = "SFT"
 
         try:
             hf_model_id = model_params['model_id']
@@ -208,27 +248,56 @@ if __name__ == "__main__":
     results_df = pd.DataFrame(all_results)
     results_df = add_additional_info(results_df) # Lucas pediu para ter isso aqui
 
-    if args.save_csv:
-        output_csv_path = "leaderboard_results_test.csv"
-        results_df.to_csv(output_csv_path, index=False)
+    # if args.save_csv:
+    #     output_csv_path = "leaderboard_results_test.csv"
+    #     results_df.to_csv(output_csv_path, index=False)
 
-    if dataset_exists:
-        existing_dataset = load_dataset(args.output_repo, split='train')
+    new_models_count = len(actually_processed)
+    existing_models_count = len(skipped_existing) + len(skipped_not_run)
 
-        if args.overwrite:
-            new_model_names = set(results_df['Modelo'])
-            existing_df = existing_dataset.to_pandas()
-            filtered_df = existing_df[~existing_df['Modelo'].isin(new_model_names)]
-
-            combined_df = pd.concat([filtered_df, results_df], ignore_index=True)
-            combined_df = combined_df.drop_duplicates(subset=['Modelo'], keep='last')
-            combined_dataset = Dataset.from_pandas(combined_df)
+    if args.run_local:
+        os.makedirs("leaderboard_results", exist_ok=True)
+        leaderboard_filename = args.output_repo.replace("/", "_").replace("-", "_") + ".csv"
+        leaderboard_filepath = os.path.join("leaderboard_results", leaderboard_filename)
+        
+        if dataset_exists:
+            existing_df = pd.read_csv(leaderboard_filepath)
+            existing_df = clean_index_columns(existing_df)
+            
+            if args.overwrite:
+                new_model_names = set(results_df['Modelo'])
+                print(new_model_names)
+                print(existing_df)
+                filtered_df = existing_df[~existing_df['Modelo'].isin(new_model_names)]
+                combined_df = pd.concat([filtered_df, results_df], ignore_index=True)
+                combined_df = combined_df.drop_duplicates(subset=['Modelo'], keep='last')
+            else:
+                combined_df = pd.concat([existing_df, results_df], ignore_index=True)
+            
+            combined_df.to_csv(leaderboard_filepath, index=False)
+            logging.info(f"Atualizou resultados com {new_models_count} modelos novos e {existing_models_count} modelos antigos em: {leaderboard_filepath}")
         else:
-            combined_dataset = concatenate_datasets([existing_dataset, Dataset.from_pandas(results_df)])
-
-        combined_dataset.push_to_hub(args.output_repo)
-        logging.info(f"Atualizou resultados com {len(results_df)} modelos novos")
+            results_df.to_csv(leaderboard_filepath, index=False)
+            logging.info(f"Criou leaderboard local com {len(results_df)} modelos em: {leaderboard_filepath}")
     else:
-        new_dataset = Dataset.from_pandas(results_df)
-        new_dataset.push_to_hub(args.output_repo)
-        logging.info(f"Repo criado com {len(results_df)} modelos")
+        if dataset_exists:
+            existing_dataset = load_dataset(args.output_repo, split='train')
+
+            if args.overwrite:
+                new_model_names = set(results_df['Modelo'])
+                existing_df = existing_dataset.to_pandas()
+                filtered_df = existing_df[~existing_df['Modelo'].isin(new_model_names)]
+
+                combined_df = pd.concat([filtered_df, results_df], ignore_index=True)
+                combined_df = combined_df.drop_duplicates(subset=['Modelo'], keep='last')
+                combined_dataset = Dataset.from_pandas(combined_df)
+            else:
+                combined_dataset = concatenate_datasets([existing_dataset, Dataset.from_pandas(results_df)])
+
+            combined_dataset.push_to_hub(args.output_repo)
+            logging.info(f"Atualizou resultados com {new_models_count} modelos novos e {existing_models_count} modelos antigos")
+        else:
+            new_dataset = Dataset.from_pandas(results_df)
+            new_dataset.push_to_hub(args.output_repo)
+            logging.info(f"Repo criado com {len(results_df)} modelos")
+

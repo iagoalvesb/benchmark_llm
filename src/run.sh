@@ -41,6 +41,7 @@ echo "  MULTI_GPU_ENABLED: $MULTI_GPU_ENABLED"
 echo "  MULTI_GPU_NUM_GPUS: $MULTI_GPU_NUM_GPUS"
 echo "  FLASH_ATTENTION_ENABLED: $FLASH_ATTENTION_ENABLED"
 echo "  UPDATE_LEADERBOARD: $UPDATE_LEADERBOARD"
+echo "  RUN_LOCAL: $RUN_LOCAL"
 echo "  MODEL_PATHS: ${MODEL_PATHS[@]}"
 echo "  MODEL_CUSTOM_FLAGS: ${MODEL_CUSTOM_FLAGS[@]}"
 echo "  MODEL_TOKENIZERS: ${MODEL_TOKENIZERS[@]}"
@@ -62,13 +63,21 @@ EVALUATION_PATH="pt-eval/eval_${RUN_ID}_${NUM_SHOTS}shot_${NUM_EXPERIMENTS}exp"
 # -------------------------
 
 echo "Generating prompts for benchmarks: ${BENCHMARK_NAMES[*]}"
-python "${SCRIPT_DIR}/generate_prompts.py" \
-  --n_shots "${NUM_SHOTS}" \
-  --n_experiments "${NUM_EXPERIMENTS}" \
-  --model_paths "${MODEL_PATHS[@]}" \
-  --model_tokenizers "${MODEL_TOKENIZERS[@]}" \
-  --benchmark_names "${BENCHMARK_NAMES[@]}" \
-  --prompts_path "${PROMPTS_PATH}"
+
+PROMPT_ARGS=(
+  "--n_shots" "${NUM_SHOTS}"
+  "--n_experiments" "${NUM_EXPERIMENTS}"
+  "--model_paths" "${MODEL_PATHS[@]}"
+  "--model_tokenizers" "${MODEL_TOKENIZERS[@]}"
+  "--benchmark_names" "${BENCHMARK_NAMES[@]}"
+  "--prompts_path" "${PROMPTS_PATH}"
+)
+
+if [ "$RUN_LOCAL" = "true" ]; then
+    PROMPT_ARGS+=("--run_local")
+fi
+
+python "${SCRIPT_DIR}/generate_prompts.py" "${PROMPT_ARGS[@]}"
 
 echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"
 
@@ -79,29 +88,28 @@ echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"
 
 
 echo "Running answer generation..."
+
+ANSWER_ARGS=(
+  "--prompts_path" "${PROMPTS_PATH}"
+  "--answers_path" "${ANSWERS_PATH}"
+  "--model_path" "${MODEL_PATHS[@]}"
+)
+
+if [ "$FLASH_ATTENTION_ENABLED" = "true" ]; then
+    ANSWER_ARGS+=("--use_flash_attention")
+fi
+
+if [ "$RUN_LOCAL" = "true" ]; then
+    ANSWER_ARGS+=("--run_local")
+fi
+
 if [ "$MULTI_GPU_ENABLED" = "true" ]; then
     echo "Using multi-GPU with $MULTI_GPU_NUM_GPUS GPUs"
-    FLASH_ATTENTION_FLAG=""
-    if [ "$FLASH_ATTENTION_ENABLED" = "true" ]; then
-        FLASH_ATTENTION_FLAG="--use_flash_attention"
-    fi
-    accelerate launch --num_processes="$MULTI_GPU_NUM_GPUS" "${SCRIPT_DIR}/generate_answers.py" \
-      --prompts_path "${PROMPTS_PATH}" \
-      --answers_path "${ANSWERS_PATH}" \
-      --model_path "${MODEL_PATHS[@]}" \
-      --use_accelerate \
-      $FLASH_ATTENTION_FLAG
+    ANSWER_ARGS+=("--use_accelerate")
+    accelerate launch --num_processes="$MULTI_GPU_NUM_GPUS" "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}"
 else
     echo "Using single GPU/CPU"
-    FLASH_ATTENTION_FLAG=""
-    if [ "$FLASH_ATTENTION_ENABLED" = "true" ]; then
-        FLASH_ATTENTION_FLAG="--use_flash_attention"
-    fi
-    python "${SCRIPT_DIR}/generate_answers.py" \
-      --prompts_path "${PROMPTS_PATH}" \
-      --answers_path "${ANSWERS_PATH}" \
-      --model_path "${MODEL_PATHS[@]}" \
-      $FLASH_ATTENTION_FLAG
+    python "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}"
 fi
 
 echo "Answer generation completed. Outputs saved to '${ANSWERS_PATH}'"
@@ -111,9 +119,17 @@ echo "Answer generation completed. Outputs saved to '${ANSWERS_PATH}'"
 # -------------------------
 
 echo "Evaluating generated answers..."
-python "${SCRIPT_DIR}/evaluate.py" \
-  --answers_path "${ANSWERS_PATH}" \
-  --eval_path "${EVALUATION_PATH}"
+
+EVAL_ARGS=(
+  "--answers_path" "${ANSWERS_PATH}"
+  "--eval_path" "${EVALUATION_PATH}"
+)
+
+if [ "$RUN_LOCAL" = "true" ]; then
+    EVAL_ARGS+=("--run_local")
+fi
+
+python "${SCRIPT_DIR}/evaluate.py" "${EVAL_ARGS[@]}"
 
 echo "Evaluation completed. Results saved to ${EVALUATION_PATH}"
 
@@ -124,12 +140,20 @@ echo "Evaluation completed. Results saved to ${EVALUATION_PATH}"
 
 if [ "$UPDATE_LEADERBOARD" = "true" ]; then
     echo "Updating leaderboard..."
-    python "${SCRIPT_DIR}/generate_leaderboard_info.py" \
-      --benchmarks-file "${EVALUATION_PATH}" \
-      --output-repo "pt-eval/leaderboard_testing" \
-      --model-paths "${MODEL_PATHS[@]}" \
-      --custom-flags "${MODEL_CUSTOM_FLAGS[@]}" \
-      --overwrite
+    
+    LEADERBOARD_ARGS=(
+      "--benchmarks-file" "${EVALUATION_PATH}"
+      "--output-repo" "pt-eval/leaderboard_testing"
+      "--model-paths" "${MODEL_PATHS[@]}"
+      "--custom-flags" "${MODEL_CUSTOM_FLAGS[@]}"
+      "--overwrite"
+    )
+    
+    if [ "$RUN_LOCAL" = "true" ]; then
+        LEADERBOARD_ARGS+=("--run_local")
+    fi
+    
+    python "${SCRIPT_DIR}/generate_leaderboard_info.py" "${LEADERBOARD_ARGS[@]}"
     echo "Leaderboard updated successfully!"
 else
     echo "Skipping leaderboard update (UPDATE_LEADERBOARD=false)"

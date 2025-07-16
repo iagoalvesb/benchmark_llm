@@ -54,6 +54,7 @@ def get_config_with_defaults(yaml_config):
         },
         'flash_attention': False,
         'update_leaderboard': False,
+        'run_local': False,
         'benchmark_names': [
             "assin2rte",
             "assin2sts", 
@@ -117,6 +118,7 @@ def generate_bash_variables(config):
     bash_vars.append(f'MULTI_GPU_NUM_GPUS={config["multi_gpu"]["num_gpus"]}')
     bash_vars.append(f'FLASH_ATTENTION_ENABLED={str(config["flash_attention"]).lower()}')  # Add flash attention variable
     bash_vars.append(f'UPDATE_LEADERBOARD={str(config["update_leaderboard"]).lower()}')
+    bash_vars.append(f'RUN_LOCAL={str(config["run_local"]).lower()}')
     bash_vars.append('MODEL_PATHS=(')
     for model in config['model_paths']:
         bash_vars.append(f'  "{model["path"]}"')

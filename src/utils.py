@@ -197,3 +197,10 @@ def add_additional_info(data):
         data[area] = value
 
     return data
+
+def clean_index_columns(df):
+    """Remove any index-related columns that may have been created by CSV round-trips"""
+    index_cols = [col for col in df.columns if col.startswith('__index_level_') or col == 'Unnamed: 0']
+    if index_cols:
+        df = df.drop(columns=index_cols)
+    return df
