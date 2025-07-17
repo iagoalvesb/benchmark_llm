@@ -82,7 +82,7 @@ benchmark_names:
 
 ### Rodando por Docker
 
-**Build**: `docker build -f .devcontainer/Dockerfile -t energygpt-eval ..`
+**Build**: `docker build -f .devcontainer/dockerfile -t energygpt-eval ..`
 **Run**: `docker run --rm --gpus=all --env-file .env energygpt-eval`
 
 Obs: No dockerfile, a imagem base do pytorch que está sendo usada usa o CUDA 12.1 por causa da 4090. Se tiver algum problema de build, utilize uma imagem do pytorch differente
