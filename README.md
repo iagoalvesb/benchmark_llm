@@ -98,5 +98,4 @@ Os problemas da aplicação para serem resolvidos depois são:
 
 Para a próxima versão:
 - Criar uma flag para ter a opção de rodar tudo localmente
-- Update requirements.txt with new libs
-
+- Melhorar performance
