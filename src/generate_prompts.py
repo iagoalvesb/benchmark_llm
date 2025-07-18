@@ -1,6 +1,9 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset, Dataset, concatenate_datasets, Value
 import random
+import os
+import logging
+from logger_config import init_logger
 import pandas as pd
 import torch
 import json
@@ -62,7 +65,14 @@ parser.add_argument(
     default=True,
 )
 
+parser.add_argument(
+    "--run_local",
+    action="store_true",
+    help="If set, save results locally as CSV instead of pushing to HuggingFace Hub"
+)
+
 args = parser.parse_args()
+init_logger()
 
 tokenizer_to_models = {}
 for model_path, tokenizer_path in zip(args.model_paths, args.model_tokenizers):
@@ -184,6 +194,16 @@ df = pd.DataFrame(melted_df)
 df['id'] = list(range(len(df)))
 column_order = ['id', 'id_bench', 'benchmark', 'prompt', 'shot_indices', 'label']
 df = df[column_order]
-dataset = Dataset.from_pandas(df)
 
-dataset.push_to_hub(args.prompts_path)
+if args.run_local:
+    os.makedirs("eval_processing", exist_ok=True)
+    
+    filename = args.prompts_path.replace("/", "_").replace("-", "_") + ".csv"
+    filepath = os.path.join("eval_processing", filename)
+    
+    df.to_csv(filepath, index=False)
+    logging.info(f"Prompts saved locally to: {filepath}")
+else:
+    dataset = Dataset.from_pandas(df)
+    dataset.push_to_hub(args.prompts_path)
+    logging.info(f"Prompts saved to HuggingFace Hub: {args.prompts_path}")

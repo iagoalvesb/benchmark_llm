@@ -4,8 +4,9 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from scipy.stats import pearsonr
 from huggingface_hub import list_datasets
 import argparse
+import os
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
-from utils import BENCHMARK_TO_METRIC
+from utils import BENCHMARK_TO_METRIC, clean_index_columns
 import logging
 from logger_config import init_logger
 
@@ -26,18 +27,51 @@ parser.add_argument(
     help="Huggingface path to save final metrics"
 )
 
+parser.add_argument(
+    "--run_local",
+    action="store_true",
+    help="If set, read/save results locally as CSV instead of using HuggingFace Hub"
+)
+
 args = parser.parse_args()
 
 init_logger()
 
-eval_dataset = list_datasets(search=args.eval_path)
-eval_dataset_exists = any(ds.id == args.eval_path for ds in eval_dataset)
-if eval_dataset_exists:
-    eval_dataset = load_dataset(args.eval_path, split='train')
+if args.run_local:
+    eval_filename = args.eval_path.replace("/", "_").replace("-", "_") + ".csv"
+    eval_filepath = os.path.join("eval_processing", eval_filename)
+    eval_dataset_exists = os.path.exists(eval_filepath)
+    
+    if eval_dataset_exists:
+        eval_df = pd.read_csv(eval_filepath)
+        eval_df = clean_index_columns(eval_df)
+        eval_dataset = Dataset.from_pandas(eval_df)
+        logging.info(f"Loaded existing evaluation data from: {eval_filepath}")
 
-dataset = load_dataset(args.answers_path, split='train')
+else:
+    eval_dataset = list_datasets(search=args.eval_path)
+    eval_dataset_exists = any(ds.id == args.eval_path for ds in eval_dataset)
+    if eval_dataset_exists:
+        eval_dataset = load_dataset(args.eval_path, split='train')
+        logging.info(f"Loaded existing evaluation data from HuggingFace Hub: {args.eval_path}")
+
+if args.run_local:
+    answers_filename = args.answers_path.replace("/", "_").replace("-", "_") + ".csv"
+    answers_filepath = os.path.join("eval_processing", answers_filename)
+    
+    if not os.path.exists(answers_filepath):
+        raise FileNotFoundError(f"Answers file not found: {answers_filepath}")
+    
+    df = pd.read_csv(answers_filepath)
+    df = clean_index_columns(df)
+    dataset = Dataset.from_pandas(df)
+    logging.info(f"Loaded answers from local file: {answers_filepath}")
+else:
+    dataset = load_dataset(args.answers_path, split='train')
+    logging.info(f"Loaded answers from HuggingFace Hub: {args.answers_path}")
+
+
 df = dataset.to_pandas()
-
 metrics_list = []
 
 for model_name in df['model_name'].unique():
@@ -96,11 +130,17 @@ if eval_dataset_exists:
     # remove the models that are already in the eval dataset
     results_dataset = concatenate_datasets([eval_dataset, results_dataset])
 
-
-
-results_dataset.push_to_hub(args.eval_path)
-
-logging.info(f"\n\n** EVALUATION RESULTS SAVED AT: {args.eval_path}")
+if args.run_local:
+    os.makedirs("eval_processing", exist_ok=True)
+    eval_filename = args.eval_path.replace("/", "_").replace("-", "_") + ".csv"
+    eval_filepath = os.path.join("eval_processing", eval_filename)
+    
+    final_df = results_dataset.to_pandas()
+    final_df.to_csv(eval_filepath, index=False)
+    logging.info(f"\n\n** EVALUATION RESULTS SAVED AT: {eval_filepath}")
+else:
+    results_dataset.push_to_hub(args.eval_path)
+    logging.info(f"\n\n** EVALUATION RESULTS SAVED AT: {args.eval_path}")
 
 # Criar print no CLI dos resultados (forma simples)
 metrics_data = []

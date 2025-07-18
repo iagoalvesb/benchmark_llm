@@ -1,10 +1,13 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset, concatenate_datasets, Dataset
 from huggingface_hub import list_datasets
+import pandas as pd
 import torch
 import argparse
+import os
 import json
 from accelerate import Accelerator
+from utils import clean_index_columns
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
 import logging
 from logger_config import init_logger
@@ -44,6 +47,12 @@ parser.add_argument(
     "--use_flash_attention",
     action="store_true",
     help="Enable Flash Attention 2 for faster inference"
+)
+
+parser.add_argument(
+    "--run_local",
+    action="store_true",
+    help="If set, read/save results locally as CSV instead of using HuggingFace Hub"
 )
 
 args = parser.parse_args()
@@ -187,7 +196,21 @@ for model_path in args.model_path:
             **model_kwargs
         )
 
-    dataset = load_dataset(args.prompts_path, split='train')
+    if args.run_local:
+        filename = args.prompts_path.replace("/", "_").replace("-", "_") + ".csv"
+        filepath = os.path.join("eval_processing", filename)
+        
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Prompts file not found: {filepath}")
+        
+        df = pd.read_csv(filepath)
+        df = clean_index_columns(df)
+        dataset = Dataset.from_pandas(df)
+        logging.info(f"Loaded prompts from local file: {filepath}")
+    else:
+        dataset = load_dataset(args.prompts_path, split='train')
+        logging.info(f"Loaded prompts from HuggingFace Hub: {args.prompts_path}")
+
     dataset = dataset.map(lambda example: {"model_name": model_name})
     dataset = dataset.map(
         lambda example: map_answer(example, model_path), 
@@ -195,24 +218,46 @@ for model_path in args.model_path:
     )
 
     all_datasets = []
-    possible_datasets = list_datasets(search=args.answers_path)
-    dataset_exists = any(ds.id == args.answers_path for ds in possible_datasets)
+    if args.run_local:
+        # Loading local dataset to append results to (if a run has already been made, add new results to the end of the file)
+        answers_filename = args.answers_path.replace("/", "_").replace("-", "_") + ".csv"
+        answers_filepath = os.path.join("eval_processing", answers_filename)
+        dataset_exists = os.path.exists(answers_filepath)
+        
+        if dataset_exists:
+            original_df = pd.read_csv(answers_filepath)
+            original_df = clean_index_columns(original_df)
+            original_df = original_df.reset_index(drop=True)
+            original_dataset = Dataset.from_pandas(original_df)
+            
+            # Filter out duplicates for this model/benchmark combination
+            current_benchmarks = set(dataset['benchmark'])
+            filtered_df = original_df[
+                ~((original_df['benchmark'].isin(current_benchmarks)) & 
+                (original_df['model_name'] == model_name))
+            ]
+            filtered_dataset = Dataset.from_pandas(filtered_df)
+            all_datasets.append(filtered_dataset)
+    else:
+        # Same for huggingface hub
+        possible_datasets = list_datasets(search=args.answers_path)
+        dataset_exists = any(ds.id == args.answers_path for ds in possible_datasets)
 
-    if dataset_exists:
-        for attempt in range(3):
-            try:
-                original_dataset = load_dataset(args.answers_path, split='train')
-                break
-            except Exception as e:
-                if attempt == 2:
-                    raise Exception(f"Failed to load existing dataset after 3 attempts: {e}")
-                logging.info(f"Tentativa {attempt + 1} falhou, retrying...")
+        if dataset_exists:
+            for attempt in range(3):
+                try:
+                    original_dataset = load_dataset(args.answers_path, split='train')
+                    break
+                except Exception as e:
+                    if attempt == 2:
+                        raise Exception(f"Failed to load existing dataset after 3 attempts: {e}")
+                    logging.info(f"Tentativa {attempt + 1} falhou, retrying...")
 
-        current_benchmarks = set(dataset['benchmark'])
-        filtered_dataset = original_dataset.filter(
-            lambda x: not (x['benchmark'] in current_benchmarks and x['model_name'] == model_name)
-        )
-        all_datasets.append(filtered_dataset)
+            current_benchmarks = set(dataset['benchmark'])
+            filtered_dataset = original_dataset.filter(
+                lambda x: not (x['benchmark'] in current_benchmarks and x['model_name'] == model_name)
+            )
+            all_datasets.append(filtered_dataset)
 
     all_datasets.append(dataset)
     full_dataset = concatenate_datasets(all_datasets)
@@ -222,11 +267,25 @@ for model_path in args.model_path:
         with_indices=True
     )
 
-    full_dataset.push_to_hub(args.answers_path)
-    logging.info(f"\n**SAVED MODEL {model_name} AT: {args.answers_path}")
+    if args.run_local:
+        os.makedirs("eval_processing", exist_ok=True)
+        answers_filename = args.answers_path.replace("/", "_").replace("-", "_") + ".csv"
+        answers_filepath = os.path.join("eval_processing", answers_filename)
+        
+        final_df = full_dataset.to_pandas()
+        final_df.to_csv(answers_filepath, index=False)
+        logging.info(f"\n**SAVED MODEL {model_name} AT: {answers_filepath}")
+    else:
+        full_dataset.push_to_hub(args.answers_path)
+        logging.info(f"\n**SAVED MODEL {model_name} AT: {args.answers_path}")
 
     del model
     del tokenizer
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
-logging.info(f"\n\n**ALL MODELS SAVED AT: {args.answers_path}")
+if args.run_local:
+    answers_filename = args.answers_path.replace("/", "_").replace("-", "_") + ".csv"
+    answers_filepath = os.path.join("eval_processing", answers_filename)
+    logging.info(f"\n\n**ALL MODELS LOCALLY SAVED AT: {answers_filepath}")
+else:
+    logging.info(f"\n\n**ALL MODELS SAVED AT: {args.answers_path}")
