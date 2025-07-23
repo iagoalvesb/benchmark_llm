@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from vllm import LLM, SamplingParams
 from datasets import load_dataset, concatenate_datasets, Dataset
 from huggingface_hub import list_datasets
 import pandas as pd
@@ -6,28 +6,18 @@ import torch
 import argparse
 import os
 import json
-from accelerate import Accelerator
 from utils import clean_index_columns
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
 import logging
 from logger_config import init_logger
 from utils import parse_answer
 import re
-import random
-import numpy as np
+import torch
 
-def set_seed(seed=42):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    os.environ['PYTHONHASHSEED'] = str(seed)
-
-set_seed(42)
-
+torch.backends.cudnn.deterministic = True
+os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "1"
+os.environ["VLLM_DISABLE_COMPILE_CACHE"] = "1"
+os.environ["VLLM_USE_V1"] = "1"
 
 parser = argparse.ArgumentParser()
 
@@ -54,15 +44,10 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--use_accelerate",
-    action="store_true",
-    help="Use Accelerate for multi-GPU inference"
-)
-
-parser.add_argument(
-    "--use_flash_attention",
-    action="store_true",
-    help="Enable Flash Attention 2 for faster inference"
+    "--tensor_parallel_size",
+    type=int,
+    default=1,
+    help="Number of GPUs to use for tensor parallelism (replaces use_accelerate)"
 )
 
 parser.add_argument(
@@ -75,14 +60,12 @@ args = parser.parse_args()
 
 init_logger()
 
-if args.use_accelerate:
-    accelerator = Accelerator()
-    device = accelerator.device
-    logging.info(f"Using Accelerate with device: {device}")
-else:
-    accelerator = None
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    logging.info(f"Usando single device: {device}")
+sampling_params = SamplingParams(
+    max_tokens=4,
+    temperature=0.0,  # Equivalent to do_sample=False
+    n=1,
+    seed=42
+)
 
 def get_prompt_for_model(prompt_json_str, model_path):
     try:
@@ -95,34 +78,36 @@ def get_prompt_for_model(prompt_json_str, model_path):
     except json.JSONDecodeError:
         raise ValueError(f"Prompt is not a valid JSON: {prompt_json_str}")
 
-def generate_answer(prompt_text):
-    input_ids = tokenizer(prompt_text, return_tensors="pt").input_ids.to(device)
-    attention_mask = (input_ids != tokenizer.pad_token_id)
-    output_ids = model.generate(
-        input_ids,
-        max_new_tokens=4,
-        do_sample=False,
-        top_p=None,
-        top_k=None,
-        temperature=None,
-        pad_token_id=tokenizer.pad_token_id,
-        attention_mask=attention_mask
-    )
-    # vamos pegar apenas os tokens da resposta (ou seja, descartamos os tokens do input)
-    num_tokens_prompt = input_ids.shape[1]
-    generated_text = tokenizer.decode(output_ids[0][num_tokens_prompt:], skip_special_tokens=True)
-    return generated_text
+def generate_answers_batch(prompts, model_path):
+    actual_prompts = [get_prompt_for_model(prompt, model_path) for prompt in prompts]
 
+    outputs = llm.generate(actual_prompts, sampling_params, use_tqdm=False)
 
-def map_answer(example, model_path):
-    actual_prompt = get_prompt_for_model(example['prompt'], model_path)
-    model_answer = generate_answer(actual_prompt)
-    example['model_answer'] = model_answer
-    example['parsed_model_answer'] = parse_answer(example)
-    example['prompt'] = actual_prompt
-    return example
+    generated_texts = []
+    for output in outputs:
+        generated_text = output.outputs[0].text
+        generated_texts.append(generated_text)
 
-# check if the dataset already exists in the hub
+    return actual_prompts, generated_texts
+
+def map_answer_batch(examples, model_path):
+    prompts = examples['prompt']
+    actual_prompts, model_answers = generate_answers_batch(prompts, model_path)
+
+    examples['prompt'] = actual_prompts
+    examples['model_answer'] = model_answers
+
+    parsed_answers = []
+    for i in range(len(examples['benchmark'])):
+        example = {
+            'benchmark': examples['benchmark'][i],
+            'model_answer': model_answers[i]
+        }
+        parsed_answers.append(parse_answer(example))
+
+    examples['parsed_model_answer'] = parsed_answers
+    return examples
+
 possible_datasets = list_datasets(search=args.answers_path)
 dataset_exists = any(ds.id == args.answers_path for ds in possible_datasets)
 
@@ -131,35 +116,20 @@ for model_path in args.model_path:
     model_name = model_path.split("/")[-1]
     current_model_path = model_path
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    tokenizer.pad_token_id = tokenizer.eos_token_id
+    llm_kwargs = {
+        "model": model_path,
+        "dtype": "bfloat16",  # Equivalent to torch.bfloat16
+        "tensor_parallel_size": args.tensor_parallel_size,
+        "gpu_memory_utilization": 0.9,
+        "trust_remote_code": True,
+        "enforce_eager": False,
+        "enable_prefix_caching": False,
+        "seed": 42,
+    }
 
-    if args.use_accelerate:
-        model_kwargs = {
-            "torch_dtype": torch.bfloat16,
-            "low_cpu_mem_usage": True,
-        }
-        if args.use_flash_attention:
-            model_kwargs["attn_implementation"] = "flash_attention_2"
+    logging.info(f"Initializing vLLM with tensor_parallel_size={args.tensor_parallel_size}")
 
-        model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            **model_kwargs
-        )
-        model = accelerator.prepare(model)
-    else:
-        model_kwargs = {
-            "torch_dtype": torch.bfloat16,
-            "low_cpu_mem_usage": True,
-            "device_map": "auto",
-        }
-        if args.use_flash_attention:
-            model_kwargs["attn_implementation"] = "flash_attention_2"
-
-        model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            **model_kwargs
-        )
+    llm = LLM(**llm_kwargs)
 
     if args.run_local:
         filename = args.prompts_path.replace("/", "_").replace("-", "_") + ".csv"
@@ -177,14 +147,17 @@ for model_path in args.model_path:
         logging.info(f"Loaded prompts from HuggingFace Hub: {args.prompts_path}")
 
     dataset = dataset.map(lambda example: {"model_name": model_name})
+
+    batch_size = 32
     dataset = dataset.map(
-        lambda example: map_answer(example, model_path),
-        desc=f"{model_path.split('/')[1]}"
+        lambda examples: map_answer_batch(examples, model_path),
+        batched=True,
+        batch_size=batch_size,
+        desc=f"{model_path.split('/')[1] if '/' in model_path else model_path}"
     )
 
     all_datasets = []
     if args.run_local:
-        # Loading local dataset to append results to (if a run has already been made, add new results to the end of the file)
         answers_filename = args.answers_path.replace("/", "_").replace("-", "_") + ".csv"
         answers_filepath = os.path.join("eval_processing", answers_filename)
         dataset_exists = os.path.exists(answers_filepath)
@@ -195,7 +168,6 @@ for model_path in args.model_path:
             original_df = original_df.reset_index(drop=True)
             original_dataset = Dataset.from_pandas(original_df)
 
-            # Filter out duplicates for this model/benchmark combination
             current_benchmarks = set(dataset['benchmark'])
             filtered_df = original_df[
                 ~((original_df['benchmark'].isin(current_benchmarks)) &
@@ -244,8 +216,7 @@ for model_path in args.model_path:
         full_dataset.push_to_hub(args.answers_path)
         logging.info(f"**SAVED MODEL {model_name} AT: {args.answers_path}")
 
-    del model
-    del tokenizer
+    del llm
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
 if args.run_local:

@@ -29,6 +29,9 @@ src/run.sh yaml/config.yaml
 # ID único para este run de evaluação
 run_id: "meu_teste"
 
+# Qual backend usar
+backend: "vllm"
+
 # Modelos a serem avaliados
 model_paths:
   - path: "Qwen/Qwen2.5-0.5B-Instruct"
@@ -67,13 +70,14 @@ benchmark_names:
 ### Parâmetros
 
 - **run_id**: Identificador único para o experimento *(obrigatório)*
+- **backend**: Qual backend vai ser usado. Opções são "vllm" e "hf" *(obrigatório)*
 - **model_paths**: Lista de modelos do HuggingFace a avaliar *(obrigatório)*
   - **path**: ID do modelo no HuggingFace *(obrigatório)*
   - **custom**: Se é modelo é finetunado por nós (opcional, default: `false`)
   - **tokenizer_path**: Tokenizer a usar caso o mesmo do modelo der problema (opcional, default: mesmo que `path`)
 - **multi_gpu**: Configuração para usar múltiplas GPUs (opcional, default: `{"enabled": false, "num_gpus": 1}`)
 - **run_local**: Se é para rodar localmente ou não (opcional, default: `false`)
-- **flash_attention**: Se é para usar FA2 ou não (opcional, default: `false`)
+- **flash_attention**: Se é para usar FA2 ou não. Esse param não funciona usando vLLM pois ele ativa no default (opcional, default: `false`)
 - **num_shots**: Quantidade de exemplos no contexto few-shot (opcional, default: `5`)
 - **num_experiments**: Repetições por sample com diferentes few-shots (opcional, default: `3`)
 - **update_leaderboard**: Se deve atualizar o leaderboard automaticamente (opcional, default: `false`)
@@ -90,12 +94,5 @@ Obs: No dockerfile, a imagem base do pytorch que está sendo usada usa o CUDA 12
 
 ### Problemas a serem resolvidos
 
-Os problemas da aplicação para serem resolvidos depois são:
-- O Gemma3 tem problemas com o KV Cache dele. Uma solução temporaria é aumentar `torch._dynamo.config.cache_size_limit`, mas isso pode fazer o eval demorar uns 10x mais para terminar e degradar performance.
+- Backend "vllm" pode dar resultados levemente diferentes se processado online (hf datasets) vs local (pandas csv).
 
-
-### Proximo Release
-
-Para a próxima versão:
-- Criar uma flag para ter a opção de rodar tudo localmente
-- Melhorar performance

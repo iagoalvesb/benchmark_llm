@@ -1,4 +1,6 @@
 import pandas as pd
+from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
+import re
 
 # Mapeamento de benchmarks para áreas do conhecimento
 BENCHMARK_TO_AREA = {
@@ -204,3 +206,58 @@ def clean_index_columns(df):
     if index_cols:
         df = df.drop(columns=index_cols)
     return df
+
+##############################################################################
+
+# Generate Answers utils
+def parse_yes_no(text):
+    text_lower = text.lower()
+    if "sim" in text_lower:
+        return "1"
+    elif "não" in text_lower:
+        return "0"
+
+    text = text.strip()[0].upper()
+    answer = 1 if text == 'S' else 0 if text == 'N' else None
+    if answer is None:
+        return None
+    return str(answer)
+
+def parse_multiple_choice(text):
+    # Extract the first character of the answer
+    text = text.strip()[0].upper()
+    return text[0]
+
+def parse_multiple_choice_full_word(text):
+    # Extract the first word of the answer
+    stripped_text = text.strip()
+    words = stripped_text.split()
+    first_word = words[0].capitalize() # Capitalize the first word just in case
+    first_word = words[0].rstrip('.,!?;:').capitalize()
+    return first_word
+
+def parse_continue_value(text):
+    # Extract the first character of the answer
+    text = text.strip()
+    match = re.search(r"\d+([\.,]?\d+)?", text)
+    text = match.group()
+    text = text.replace(',', '.')
+    return text
+
+def parse_answer(example):
+    # Extract the answer in the correct format (e.g. anser "Resposta: E" to "E")
+    benchmark_name = example['benchmark']
+    benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
+    try:
+        if benchmark.answer_pattern == "yes_no":
+            return parse_yes_no(example['model_answer'])
+        elif benchmark.answer_pattern == "multiple_choice":
+            return parse_multiple_choice(example['model_answer'])
+        elif benchmark.answer_pattern == "multiple_choice_full_word":
+            return parse_multiple_choice_full_word(example['model_answer'])
+        elif benchmark.answer_pattern == "continue_value":
+            return parse_continue_value(example['model_answer'])
+        else:
+            raise ValueError(f"Unknown answer pattern: {benchmark.answer_pattern}")
+    except:
+        return None

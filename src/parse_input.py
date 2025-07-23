@@ -72,6 +72,10 @@ def get_config_with_defaults(yaml_config):
     
     config = defaults.copy()
     config.update(yaml_config)
+
+    valid_backends = ['hf', 'vllm']
+    if config['backend'] not in valid_backends:
+        raise ValueError(f"'backend' must be one of {valid_backends}, got: {config['backend']}")
     
     if not isinstance(config.get('multi_gpu'), dict):
         raise ValueError("'multi_gpu' must be a dictionary with 'enabled' and 'num_gpus' fields")
@@ -114,6 +118,7 @@ def generate_bash_variables(config):
     bash_vars.append(f'NUM_SHOTS={config["num_shots"]}')
     bash_vars.append(f'NUM_EXPERIMENTS={config["num_experiments"]}')
     bash_vars.append(f'RUN_ID="{config["run_id"]}"')
+    bash_vars.append(f'BACKEND="{config["backend"]}"')  # Add backend variable
     bash_vars.append(f'MULTI_GPU_ENABLED={str(config["multi_gpu"]["enabled"]).lower()}')
     bash_vars.append(f'MULTI_GPU_NUM_GPUS={config["multi_gpu"]["num_gpus"]}')
     bash_vars.append(f'FLASH_ATTENTION_ENABLED={str(config["flash_attention"]).lower()}')  # Add flash attention variable

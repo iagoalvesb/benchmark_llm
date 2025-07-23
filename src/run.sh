@@ -95,21 +95,39 @@ ANSWER_ARGS=(
   "--model_path" "${MODEL_PATHS[@]}"
 )
 
-if [ "$FLASH_ATTENTION_ENABLED" = "true" ]; then
-    ANSWER_ARGS+=("--use_flash_attention")
-fi
-
 if [ "$RUN_LOCAL" = "true" ]; then
     ANSWER_ARGS+=("--run_local")
 fi
 
-if [ "$MULTI_GPU_ENABLED" = "true" ]; then
-    echo "Using multi-GPU with $MULTI_GPU_NUM_GPUS GPUs"
-    ANSWER_ARGS+=("--use_accelerate")
-    accelerate launch --num_processes="$MULTI_GPU_NUM_GPUS" "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}"
+if [ "$BACKEND" = "vllm" ]; then
+    echo "Using vLLM backend"
+
+    if [ "$MULTI_GPU_ENABLED" = "true" ]; then
+        echo "Using multi-GPU with $MULTI_GPU_NUM_GPUS GPUs (tensor parallel)"
+        ANSWER_ARGS+=("--tensor_parallel_size" "$MULTI_GPU_NUM_GPUS")
+    fi
+
+    python "${SCRIPT_DIR}/generate_answers_vllm.py" "${ANSWER_ARGS[@]}"
+
+elif [ "$BACKEND" = "hf" ]; then
+    echo "Using HuggingFace backend"
+
+    if [ "$FLASH_ATTENTION_ENABLED" = "true" ]; then
+        ANSWER_ARGS+=("--use_flash_attention")
+    fi
+
+    if [ "$MULTI_GPU_ENABLED" = "true" ]; then
+        echo "Using multi-GPU with $MULTI_GPU_NUM_GPUS GPUs (accelerate)"
+        ANSWER_ARGS+=("--use_accelerate")
+        accelerate launch --num_processes="$MULTI_GPU_NUM_GPUS" "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}"
+    else
+        echo "Using single GPU/CPU"
+        python "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}"
+    fi
+
 else
-    echo "Using single GPU/CPU"
-    python "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}"
+    echo "Error: Unknown backend '$BACKEND'. Must be 'hf' or 'vllm'"
+    exit 1
 fi
 
 echo "Answer generation completed. Outputs saved to '${ANSWERS_PATH}'"
@@ -140,7 +158,7 @@ echo "Evaluation completed. Results saved to ${EVALUATION_PATH}"
 
 if [ "$UPDATE_LEADERBOARD" = "true" ]; then
     echo "Updating leaderboard..."
-    
+
     LEADERBOARD_ARGS=(
       "--benchmarks-file" "${EVALUATION_PATH}"
       "--output-repo" "pt-eval/leaderboard_testing"
@@ -148,11 +166,11 @@ if [ "$UPDATE_LEADERBOARD" = "true" ]; then
       "--custom-flags" "${MODEL_CUSTOM_FLAGS[@]}"
       "--overwrite"
     )
-    
+
     if [ "$RUN_LOCAL" = "true" ]; then
         LEADERBOARD_ARGS+=("--run_local")
     fi
-    
+
     python "${SCRIPT_DIR}/generate_leaderboard_info.py" "${LEADERBOARD_ARGS[@]}"
     echo "Leaderboard updated successfully!"
 else

@@ -1,5 +1,6 @@
 # Campos obrigatórios (Modelos do evaluation)
 run_id: "my_run"
+backend: "vllm"
 model_paths:
   - path: "Qwen/Qwen2.5-3B-Instruct"
     custom: false
@@ -18,7 +19,7 @@ multi_gpu:
 
 run_local: true
 flash_attention: false
-update_leaderboard: false
+update_leaderboard: true
 num_shots: 5
 num_experiments: 3
 benchmark_names:
@@ -28,7 +29,6 @@ benchmark_names:
   - "enem"
   - "hatebr"
   - "portuguese_hate_speech"
-  - "toxsyn_pt"
   - "faquad"
   - "tweetsentbr"
   - "oab"
