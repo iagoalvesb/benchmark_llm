@@ -29,6 +29,7 @@ BENCHMARK_TO_AREA = {
     'bndes':                  'Multidisciplinar',
     'cacd_1_fase':            'Multidisciplinar',
     'cacd_2_fase':            'Multidisciplinar',
+    'energy_regulacao':       'Energy',
 }
 
 # Mapeamento de benchmarks para formatação do leaderboard (temporario provavelmente)
@@ -58,6 +59,7 @@ BENCHMARK_TO_COLUMN = {
     'bndes':                  'BNDES',
     'cacd_1_fase':            'CACD (1ª fase)',
     'cacd_2_fase':            'CACD (2ª fase)',
+    'energy_regulacao':       'ENERGY-REGULAÇÃO'
 }
 
 # Mapeamento de benchmarks para métricas
@@ -87,6 +89,7 @@ BENCHMARK_TO_METRIC = {
     'bndes':                  ['accuracy'],
     'cacd_1_fase':            ['accuracy'],
     'cacd_2_fase':            ['accuracy'],
+    'energy_regulacao':       ['accuracy'],
 }
 
 ##############################################################################
@@ -191,7 +194,7 @@ def add_additional_info(data):
         "Datasets Economia e Contabilidade": "BCB, CFCES",
         "Datasets Semântica e Inferência": "FAQUAD NLI, ASSIN2 RTE, ASSIN2 STS",
         "Datasets Multidisciplinar": "ENEM, BLUEX, CNPU, ENADE, BNDES, CACD (1ª fase), CACD (2ª fase)",
-        "energy_dataset": 0.5,
+        "energy_dataset": "ENERGY-REGULAÇÃO",
         "reasoning_dataset": 0.5
     }
 
