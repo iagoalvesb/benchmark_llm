@@ -33,3 +33,4 @@ benchmark_names:
   - "tweetsentbr"
   - "oab"
   - "poscomp"
+  - "energy_regulacao"
