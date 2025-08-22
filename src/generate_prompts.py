@@ -7,7 +7,8 @@ from logger_config import init_logger
 import pandas as pd
 import torch
 import json
-
+import ast
+import re
 import argparse
 
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
@@ -105,16 +106,24 @@ def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots, use_fixed_seed=ar
     return shots, shot_id_benches
 
 
+
+
+
 def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_experiments=args.n_experiments):
     for i in range(n_experiments):
         shots, shot_id_benches = get_shots(example['idx'], dataset, n_shots, args.use_fixed_seed)
         example_informations = benchmark.get_prompt_informations(example)
-
+        
+        #example_informations['user_message'] = example_informations['user_message'].replace("\\uparrow$", "\\\\uparrow$")
+        #example_informations['assistant_message_without_answer'] = example_informations['assistant_message_without_answer'].replace("\\uparrow$", "\\\\uparrow$")
+        
         chat = [{"role": "system", "content": example_informations['base_system_message']}]
         
         if shots:
             for shot in shots:
                 shot_informations = benchmark.get_prompt_informations(shot)
+               # shot_informations['user_message'] = shot_informations['user_message'].replace("\\uparrow$", "\\\\uparrow$")
+               # shot_informations['assistant_message_with_answer'] = shot_informations['assistant_message_with_answer'].replace("\\uparrow$", "\\\\uparrow$")
                 chat.append({"role": "user", "content": shot_informations['user_message']})
                 chat.append({"role": "assistant", "content": shot_informations['assistant_message_with_answer']})
 
@@ -134,12 +143,42 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
         example[f"shot_indices_{i}"] = shot_id_benches
     return example
 
+def sanitize_latex(example):
+    """
+    Esta função lê o campo 'alternatives', corrige problemas de sintaxe do LaTeX,
+    converte para um dicionário para manipulação interna e, converte o dicionário limpo de volta para uma string JSON padronizada.
+    """
+    alternatives_data = example.get("alternatives")
+    if not isinstance(alternatives_data, str) or not alternatives_data.strip():
+        return example
+
+    try:
+
+        safe_string = alternatives_data.replace(r'\uparrow', r'\\uparrow')
+        safe_string = safe_string.replace(r'\underline', r'\\underline') 
+
+        alternatives_dict = ast.literal_eval(safe_string)
+
+        if 'text' not in alternatives_dict:
+            alternatives_dict['text'] = []
+        if 'label' not in alternatives_dict:
+            alternatives_dict['label'] = []
+
+        example['alternatives'] = json.dumps(alternatives_dict, ensure_ascii=False)
+
+    except (ValueError, SyntaxError):
+        pass
+
+    return example
 
 all_benchmarks = []
 for benchmark_name in args.benchmark_names:
     benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
     dataset = load_dataset(benchmark.dataset_path, benchmark.subset)
-    if hasattr(benchmark, 'split'):
+    if hasattr(benchmark, 'split') and benchmark.split=="poscomp": #O poscomp é problematico, ele tem caracteres não escapados (começam com \u) e têm que ser tratados.
+        dataset = dataset[benchmark.split]
+        dataset = dataset.map(sanitize_latex, num_proc=1, desc="Sanitizing alternatives for poscomp")
+    elif hasattr(benchmark, 'split'):
         dataset = dataset[benchmark.split]
     else:
         dataset = dataset['test'] if 'test' in dataset.keys() else dataset['train']
@@ -162,6 +201,7 @@ for benchmark_name in args.benchmark_names:
 
     # GERANDO PROMPTS
     get_prompt_partial = partial(get_prompt, benchmark=benchmark, dataset_benchmark=dataset)
+
     dataset = dataset.map(get_prompt_partial, num_proc=64, desc=benchmark_name)
 
     prompt_exp_columns = [f"prompt_{i}" for i in range(args.n_experiments)]
