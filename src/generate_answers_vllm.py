@@ -15,11 +15,19 @@ import re
 import csv
 import torch
 import time
+import random
+import numpy as np
 
 torch.backends.cudnn.deterministic = True
 os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "1"
 os.environ["VLLM_DISABLE_COMPILE_CACHE"] = "1"
 os.environ["VLLM_USE_V1"] = "1"
+
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
+torch.cuda.manual_seed_all(42)
+SEED = 42
 
 parser = argparse.ArgumentParser()
 

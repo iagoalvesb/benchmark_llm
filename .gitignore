@@ -2,3 +2,5 @@
 **/__pycache__/
 leaderboard_results/
 eval_processing/
+test_dir/
+yaml/config_*.yaml
