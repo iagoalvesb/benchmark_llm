@@ -12,7 +12,9 @@ import logging
 from logger_config import init_logger
 from utils import parse_answer
 import re
+import csv
 import torch
+import time
 
 torch.backends.cudnn.deterministic = True
 os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "1"
@@ -67,6 +69,22 @@ sampling_params = SamplingParams(
     seed=42
 )
 
+def clean_data_for_csv(df):
+    def clean_text(text):
+        if pd.isna(text):
+            return text
+        text = str(text)
+        # Handle POSCOMP-specific Unicode escapes by doubling them
+        text = re.sub(r'\\([uU][0-9a-fA-F]{4})', r'\\\\\1', text)
+        # Handle other problematic backslashes
+        text = re.sub(r'\\([^uU])', r'\\\\\1', text)
+        return text
+    
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            df[col] = df[col].apply(clean_text)
+    return df
+
 def get_prompt_for_model(prompt_json_str, model_path):
     try:
         prompt_data = json.loads(prompt_json_str)
@@ -78,21 +96,31 @@ def get_prompt_for_model(prompt_json_str, model_path):
     except json.JSONDecodeError:
         raise ValueError(f"Prompt is not a valid JSON: {prompt_json_str}")
 
-def generate_answers_batch(prompts, model_path):
-    actual_prompts = [get_prompt_for_model(prompt, model_path) for prompt in prompts]
+def generate_answers_batch(prompts, model_path, max_len):
+	actual_prompts = [get_prompt_for_model(p, model_path) for p in prompts]
+	if any(len(p) > max_len for p in actual_prompts):
+		logging.warning(f"Batch contains prompts exceeding {max_len} tokens, middle-truncating prompts")
 
-    outputs = llm.generate(actual_prompts, sampling_params, use_tqdm=False)
+        # When the prompt is too long, we truncate it in the middle to avoid losing important information
+		def mid_trunc(s, limit):
+			ellipsis = " ... "
+			extra = 5
+			if len(s) <= limit:
+				return s
+			keep = max(limit - extra - len(ellipsis), 0)
+			head = keep // 2
+			tail = keep - head
+			if keep == 0:
+				return ellipsis.strip()
+			return s[:head] + ellipsis + (s[-tail:] if tail > 0 else "")
+		actual_prompts = [mid_trunc(p, max_len) if len(p) > max_len else p for p in actual_prompts]
+	outputs = llm.generate(actual_prompts, sampling_params, use_tqdm=False)
+	generated_texts = [o.outputs[0].text for o in outputs]
+	return actual_prompts, generated_texts
 
-    generated_texts = []
-    for output in outputs:
-        generated_text = output.outputs[0].text
-        generated_texts.append(generated_text)
-
-    return actual_prompts, generated_texts
-
-def map_answer_batch(examples, model_path):
+def map_answer_batch(examples, model_path, max_len):
     prompts = examples['prompt']
-    actual_prompts, model_answers = generate_answers_batch(prompts, model_path)
+    actual_prompts, model_answers = generate_answers_batch(prompts, model_path, max_len)
 
     examples['prompt'] = actual_prompts
     examples['model_answer'] = model_answers
@@ -118,7 +146,7 @@ for model_path in args.model_path:
 
     llm_kwargs = {
         "model": model_path,
-        "dtype": "bfloat16",  # Equivalent to torch.bfloat16
+        "dtype": "bfloat16",
         "tensor_parallel_size": args.tensor_parallel_size,
         "gpu_memory_utilization": 0.9,
         "trust_remote_code": True,
@@ -127,9 +155,24 @@ for model_path in args.model_path:
         "seed": 42,
     }
 
-    logging.info(f"Initializing vLLM with tensor_parallel_size={args.tensor_parallel_size}")
-
-    llm = LLM(**llm_kwargs)
+    # Retry LLM initialization
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            logging.info(f"Initializing vLLM attempt {attempt + 1}/3 with tensor_parallel_size={args.tensor_parallel_size}")
+            llm = LLM(**llm_kwargs)
+            max_len = llm.llm_engine.model_config.max_model_len
+            break
+        except Exception as e:
+            if 'llm' in locals():
+                del llm
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            if attempt == max_attempts - 1:
+                raise Exception(f"Failed to initialize LLM after 3 attempts: {e}")
+            logging.warning(f"LLM initialization attempt {attempt + 1} failed: {e}")
+            logging.info("Retrying in 5 seconds...")
+            time.sleep(5)
 
     if args.run_local:
         filename = args.prompts_path.replace("/", "_").replace("-", "_") + ".csv"
@@ -150,7 +193,7 @@ for model_path in args.model_path:
 
     batch_size = 32
     dataset = dataset.map(
-        lambda examples: map_answer_batch(examples, model_path),
+        lambda examples: map_answer_batch(examples, model_path, max_len),
         batched=True,
         batch_size=batch_size,
         desc=f"{model_path.split('/')[1] if '/' in model_path else model_path}"
@@ -210,7 +253,8 @@ for model_path in args.model_path:
         answers_filepath = os.path.join("eval_processing", answers_filename)
 
         final_df = full_dataset.to_pandas()
-        final_df.to_csv(answers_filepath, index=False)
+        final_df = clean_data_for_csv(final_df)
+        final_df.to_csv(answers_filepath, index=False, quoting=csv.QUOTE_ALL, escapechar='\\')
         logging.info(f"**SAVED MODEL {model_name} AT: {answers_filepath}")
     else:
         full_dataset.push_to_hub(args.answers_path)

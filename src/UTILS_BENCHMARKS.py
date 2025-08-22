@@ -1,3 +1,5 @@
+import ast
+
 class assin2rte:
     def __init__(self):
         self.dataset_path = "eduagarcia/portuguese_benchmark"
@@ -290,7 +292,8 @@ class energy_regulacao:
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
         
-        alternatives_dict = ast.literal_eval(example['choices'])
+        # alternatives_dict = ast.literal_eval(example['choices'])
+        alternatives_dict = example['choices']
 
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
