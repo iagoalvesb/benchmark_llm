@@ -19,7 +19,7 @@ class assin2rte:
         assistant_message_positive = "Resposta: Sim, com base na nossa premissa, a hipótese acima é verdadeira."
         assistant_message_negative = "Resposta: Não, com base na nossa premissa, a hipótese acima não é verdadeira."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == '1' else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -62,11 +62,11 @@ class bluex:
         num_alternatives_example = len(example['choices']['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {example['choices']['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
+
         prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
-        
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
@@ -89,11 +89,11 @@ class enem:
         num_alternatives_example = len(example['choices']['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {example['choices']['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
+
         prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
-        
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
@@ -117,7 +117,7 @@ class hatebr:
         assistant_message_positive = "Resposta: Sim, o texto é ofensivo."
         assistant_message_negative = "Resposta: Não, o texto não é ofensivo."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == '1' else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -141,7 +141,7 @@ class portuguese_hate_speech:
         assistant_message_positive = "Resposta: Sim, o texto é ofensivo."
         assistant_message_negative = "Resposta: Não, o texto não é ofensivo."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == '1' else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -165,7 +165,7 @@ class toxsyn_pt:
         assistant_message_positive = "Resposta: Sim, o texto é ofensivo."
         assistant_message_negative = "Resposta: Não, o texto não é ofensivo."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == '1' else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -189,7 +189,7 @@ class faquad:
         assistant_message_positive = "Resposta: Sim, a resposta dada satisfaz à pergunta."
         assistant_message_negative = "Resposta: Não, a resposta dada não satisfaz à pergunta."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == 1 else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -201,7 +201,7 @@ class tweetsentbr:
         self.important_columns = ["sentence", "label"]
         self.label_column = "label"
         self.answer_pattern = "multiple_choice_full_word"
-        self.answer_type = "category"   
+        self.answer_type = "category"
 
     def get_prompt_informations(self, example):
         prompt_informations = {}
@@ -214,11 +214,11 @@ class tweetsentbr:
             "Neutro": "Resposta: Neutro"
         }
 
-        prompt_informations['assistant_message_with_answer'] = label_map.get(example['label']) 
-        
+        prompt_informations['assistant_message_with_answer'] = label_map.get(example['label'])
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
-    
+
 
 class oab:
     def __init__(self):
@@ -240,11 +240,11 @@ class oab:
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
+
         prompt_informations['user_message'] = f"Pergunta:\n{example['statement']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
-        
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
@@ -262,18 +262,18 @@ class poscomp:
     def get_prompt_informations(self, example):
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
-        
+
         alternatives_dict = ast.literal_eval(example['alternatives'])
 
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
-        
+
+
         prompt_informations['user_message'] = f"Pergunta:\n{example['statement']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
-        
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
@@ -291,20 +291,20 @@ class energy_regulacao:
     def get_prompt_informations(self, example):
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
-        
+
         # alternatives_dict = ast.literal_eval(example['choices'])
         alternatives_dict = example['choices']
 
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
-        
-        prompt_informations['user_message'] = f"Tendo como base o contexto legal:\n{example['right_context']}\nSegue a pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e, tendo como base o contexto legal fornecido, responda corretamente a pergunta:\n\n{example_alternatives}"
 
-        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta, com base no contexto legal fornecido, é a letra ({example['label']})"
-        
-        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta, com base no contexto legal fornecido, é a letra ("
+
+        prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
+
+        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
+
+        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
 
