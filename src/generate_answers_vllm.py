@@ -1,5 +1,5 @@
 from vllm import LLM, SamplingParams
-from datasets import load_dataset, concatenate_datasets, Dataset
+from datasets import load_dataset, concatenate_datasets, Dataset, Value
 from huggingface_hub import list_datasets
 import pandas as pd
 import torch
@@ -144,8 +144,20 @@ def map_answer_batch(examples, model_path, max_len):
     examples['parsed_model_answer'] = parsed_answers
     return examples
 
+def ensure_string_columns(ds):
+    target_cols = [
+        'model_answer', 'parsed_model_answer', 'label',
+        'prompt', 'shot_indices', 'benchmark', 'model_name', 'id_bench'
+    ]
+    for col in target_cols:
+        if col in ds.column_names:
+            ds = ds.cast_column(col, Value('string'))
+    return ds
+
 possible_datasets = list_datasets(search=args.answers_path)
 dataset_exists = any(ds.id == args.answers_path for ds in possible_datasets)
+
+
 
 for model_path in args.model_path:
     logging.info(f"** RUNNING MODEL: {model_path}")
@@ -225,6 +237,7 @@ for model_path in args.model_path:
                 (original_df['model_name'] == model_name))
             ]
             filtered_dataset = Dataset.from_pandas(filtered_df)
+			filtered_dataset = ensure_string_columns(filtered_dataset)
             all_datasets.append(filtered_dataset)
     else:
         # Same for huggingface hub
@@ -245,8 +258,10 @@ for model_path in args.model_path:
             filtered_dataset = original_dataset.filter(
                 lambda x: not (x['benchmark'] in current_benchmarks and x['model_name'] == model_name)
             )
+			filtered_dataset = ensure_string_columns(filtered_dataset)
             all_datasets.append(filtered_dataset)
 
+	dataset = ensure_string_columns(dataset)
     all_datasets.append(dataset)
     full_dataset = concatenate_datasets(all_datasets)
 
@@ -262,7 +277,14 @@ for model_path in args.model_path:
 
         final_df = full_dataset.to_pandas()
         final_df = clean_data_for_csv(final_df)
-        final_df.to_csv(answers_filepath, index=False, quoting=csv.QUOTE_ALL, escapechar='\\')
+        final_df.to_csv(
+            answers_filepath,
+            index=False,
+            quoting=csv.QUOTE_MINIMAL,
+            doublequote=True,
+            escapechar='\\',
+            lineterminator='\n'
+        )
         logging.info(f"**SAVED MODEL {model_name} AT: {answers_filepath}")
     else:
         full_dataset.push_to_hub(args.answers_path)
