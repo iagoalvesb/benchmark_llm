@@ -146,27 +146,35 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
 def sanitize_latex(example):
     """
     Esta função lê o campo 'alternatives', corrige problemas de sintaxe do LaTeX,
-    converte para um dicionário para manipulação interna e, converte o dicionário limpo de volta para uma string JSON padronizada.
+    converte para um dicionário para manipulação interna e
+    converte o dicionário limpo de volta para uma string JSON padronizada.
     """
     alternatives_data = example.get("alternatives")
+
+    # Se o campo não for uma string ou estiver vazio, retorna como está
     if not isinstance(alternatives_data, str) or not alternatives_data.strip():
         return example
 
     try:
-
+        # 1. Corrige os backslashes para que a string seja "parseável" pelo Python
+       # safe_string = alternatives_data.replace('\\', '\\\\')
         safe_string = alternatives_data.replace(r'\uparrow', r'\\uparrow')
         safe_string = safe_string.replace(r'\underline', r'\\underline') 
-
+        # 2. Converte a string segura para um dicionário
         alternatives_dict = ast.literal_eval(safe_string)
 
+        # 3. Garantir o formato
         if 'text' not in alternatives_dict:
             alternatives_dict['text'] = []
         if 'label' not in alternatives_dict:
             alternatives_dict['label'] = []
 
+        # 4. Converte o dicionário limpo de volta para uma string.
         example['alternatives'] = json.dumps(alternatives_dict, ensure_ascii=False)
 
     except (ValueError, SyntaxError):
+        # Se mesmo com a correção a string for inválida,
+        # mantém o valor original para não quebrar o fluxo.
         pass
 
     return example
