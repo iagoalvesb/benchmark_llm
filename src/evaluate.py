@@ -6,7 +6,7 @@ from huggingface_hub import list_datasets
 import argparse
 import os
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
-from utils import BENCHMARK_TO_METRIC, clean_index_columns
+from utils import BENCHMARK_TO_METRIC, clean_index_columns, parse_integer_math_format
 import logging
 from logger_config import init_logger
 
@@ -93,9 +93,23 @@ for model_name in df['model_name'].unique():
         non_parsed_pct = mask.count(False) / len(mask)
 
         benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
+
+        # Normalização específica para benchmarks de exato inteiro com formatação matemática (AIME 24/25)
+        if getattr(benchmark, 'answer_pattern', None) == "integer_exact_math":
+            y_true_list = [parse_integer_math_format(str(x)) for x in y_true]
+            y_pred_list = list(y_pred)
+            # Refiltrar removendo casos inválidos em y_true OU y_pred
+            mask_both = [(p is not None) and (t is not None) for p, t in zip(y_pred_list, y_true_list)]
+            y_pred = [p for p, m in zip(y_pred_list, mask_both) if m]
+            y_true = [t for t, m in zip(y_true_list, mask_both) if m]
+            if len(mask_both) > 0:
+                non_parsed_pct = 1 - (sum(mask_both) / len(mask_both))
         
         # Calculate various metrics
         if benchmark.answer_type == "category":
+            # Garantir tipos homogêneos (strings) para classificadores
+            y_true = [str(x) for x in y_true]
+            y_pred = [str(x) for x in y_pred]
             accuracy  = accuracy_score(y_true, y_pred)
             precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
             recall    = recall_score(y_true, y_pred, average='weighted', zero_division=0)
