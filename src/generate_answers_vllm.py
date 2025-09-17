@@ -17,6 +17,7 @@ import torch
 import time
 import random
 import numpy as np
+from typing import Optional
 
 torch.backends.cudnn.deterministic = True
 os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "1"
@@ -66,15 +67,57 @@ parser.add_argument(
     help="If set, read/save results locally as CSV instead of using HuggingFace Hub"
 )
 
+parser.add_argument(
+    "--use_outlines",
+    action="store_true",
+    help="Use outlines to enforce structured JSON outputs with explanation and final answer"
+)
+
+parser.add_argument(
+    "--max_new_tokens",
+    type=int,
+    default=4,
+    help="Maximum number of new tokens to generate"
+)
+
+parser.add_argument(
+    "--batch_size",
+    type=int,
+    default=32,
+    help="Batch size for prompt generation requests (dataset.map batched size)"
+)
+
+parser.add_argument(
+    "--data_parallel_size",
+    type=int,
+    default=1,
+    help="Number of data-parallel shards (use >1 when launching multiple ranks)"
+)
+
+parser.add_argument(
+    "--data_parallel_rank",
+    type=int,
+    default=0,
+    help="Rank index of this data-parallel worker (0..data_parallel_size-1)"
+)
+
+parser.add_argument(
+    "--answers_shard_suffix",
+    type=str,
+    default="",
+    help="Optional suffix to append to the local answers CSV filename for sharded saving"
+)
+
 args = parser.parse_args()
 
 init_logger()
 
 sampling_params = SamplingParams(
-    max_tokens=4,
-    temperature=0.0,  # Equivalent to do_sample=False
+    max_tokens=args.max_new_tokens,
+    temperature=0.0,  # Keep deterministic default to preserve prior behavior
     n=1,
-    seed=42
+    seed=42,
+    frequency_penalty=1.2,
 )
 
 def clean_data_for_csv(df):
@@ -147,7 +190,7 @@ def map_answer_batch(examples, model_path, max_len):
 def ensure_string_columns(ds):
     target_cols = [
         'model_answer', 'parsed_model_answer', 'label',
-        'prompt', 'shot_indices', 'benchmark', 'model_name', 'id_bench'
+        'prompt', 'shot_indices', 'benchmark', 'model_name', 'id_bench', 'explanation'
     ]
     for col in target_cols:
         if col in ds.column_names:
@@ -211,34 +254,111 @@ for model_path in args.model_path:
 
     dataset = dataset.map(lambda example: {"model_name": model_name})
 
-    batch_size = 32
-    dataset = dataset.map(
-        lambda examples: map_answer_batch(examples, model_path, max_len),
-        batched=True,
-        batch_size=batch_size,
-        desc=f"{model_path.split('/')[1] if '/' in model_path else model_path}"
-    )
+    # Optional data-parallel sharding
+    if args.data_parallel_size and args.data_parallel_size > 1:
+        logging.info(f"Sharding dataset: data_parallel_size={args.data_parallel_size}, rank={args.data_parallel_rank}")
+        try:
+            dataset = dataset.shard(num_shards=args.data_parallel_size, index=args.data_parallel_rank, contiguous=True)
+        except Exception as e:
+            logging.warning(f"Failed to shard dataset contiguously, falling back to non-contiguous shard: {e}")
+            dataset = dataset.shard(num_shards=args.data_parallel_size, index=args.data_parallel_rank)
+
+    if args.use_outlines:
+        # Lazy import to avoid hard dependency when not used
+        try:
+            import outlines
+            from pydantic import BaseModel
+        except Exception as e:
+            raise ImportError(f"Outlines or pydantic not available but --use_outlines was set: {e}")
+
+        class StructuredOutput(BaseModel):
+            explicacao: str
+            resposta: str
+
+        def build_outlines_instruction(benchmark_name: str) -> str:
+            benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
+            base = (
+                "IMPORTANTE: Responda APENAS no formato JSON com as chaves 'explicacao' e 'resposta'. "
+                "A chave 'explicacao' deve conter um raciocínio breve e objetivo. "
+                "A chave 'resposta' deve conter SOMENTE a resposta final no formato especificado abaixo.\n"
+            )
+            if benchmark.answer_pattern == "yes_no":
+                spec = "Para 'resposta', use exatamente 'Sim' ou 'Não'."
+            elif benchmark.answer_pattern == "multiple_choice":
+                spec = "Para 'resposta', use exatamente UMA letra entre 'A', 'B', 'C', 'D' ou 'E'."
+            elif benchmark.answer_pattern == "multiple_choice_full_word":
+                spec = "Para 'resposta', use exatamente uma palavra entre 'Positivo', 'Negativo' ou 'Neutro'."
+            elif benchmark.answer_pattern == "continue_value":
+                spec = "Para 'resposta', use apenas um número (use ponto decimal se necessário)."
+            else:
+                spec = "Para 'resposta', forneça apenas o valor final esperado para o benchmark."
+            example = "Exemplo: {\"explicacao\": \"...\", \"resposta\": \"...\"}"
+            return base + spec + "\n" + example
+
+        outlines_model = outlines.from_vllm_offline(llm)
+
+        def map_answer_outlines(example, model_path_local, max_len_local, outlines_model_local):
+            actual_prompt = get_prompt_for_model(example['prompt'], model_path_local)
+            # No longer append instruction here; generate_prompts already embeds it in the user message
+
+            result_json = outlines_model_local(
+                actual_prompt,
+                output_type=StructuredOutput,
+                sampling_params=sampling_params
+            )
+
+            try:
+                validated = StructuredOutput.model_validate_json(result_json)
+                explanation = validated.explicacao
+                final_answer_text = validated.resposta
+            except Exception:
+                explanation = None
+                final_answer_text = result_json
+
+            example['prompt'] = actual_prompt
+            example['model_answer'] = result_json
+            example['explanation'] = explanation
+            parsed = parse_answer({'benchmark': example['benchmark'], 'model_answer': final_answer_text})
+            example['parsed_model_answer'] = parsed
+            return example
+        batch_size = args.batch_size
+        dataset = dataset.map(
+            lambda example: map_answer_outlines(example, model_path, max_len, outlines_model),
+            # batched=True,
+            # batch_size=batch_size,
+            desc=f"{model_path.split('/')[1] if '/' in model_path else model_path} (outlines)"
+        )
+    else:
+        batch_size = args.batch_size
+        dataset = dataset.map(
+            lambda examples: map_answer_batch(examples, model_path, max_len),
+            batched=True,
+            batch_size=batch_size,
+            desc=f"{model_path.split('/')[1] if '/' in model_path else model_path}"
+        )
 
     all_datasets = []
     if args.run_local:
-        answers_filename = args.answers_path.replace("/", "_").replace("-", "_") + ".csv"
-        answers_filepath = os.path.join("eval_processing", answers_filename)
-        dataset_exists = os.path.exists(answers_filepath)
+        # In data-parallel local mode, skip reading an existing merged file per shard
+        if not (args.data_parallel_size and args.data_parallel_size > 1):
+            answers_filename = args.answers_path.replace("/", "_").replace("-", "_") + ".csv"
+            answers_filepath = os.path.join("eval_processing", answers_filename)
+            dataset_exists = os.path.exists(answers_filepath)
 
-        if dataset_exists:
-            original_df = pd.read_csv(answers_filepath)
-            original_df = clean_index_columns(original_df)
-            original_df = original_df.reset_index(drop=True)
-            original_dataset = Dataset.from_pandas(original_df)
+            if dataset_exists:
+                original_df = pd.read_csv(answers_filepath)
+                original_df = clean_index_columns(original_df)
+                original_df = original_df.reset_index(drop=True)
+                original_dataset = Dataset.from_pandas(original_df)
 
-            current_benchmarks = set(dataset['benchmark'])
-            filtered_df = original_df[
-                ~((original_df['benchmark'].isin(current_benchmarks)) &
-                (original_df['model_name'] == model_name))
-            ]
-            filtered_dataset = Dataset.from_pandas(filtered_df)
-			filtered_dataset = ensure_string_columns(filtered_dataset)
-            all_datasets.append(filtered_dataset)
+                current_benchmarks = set(dataset['benchmark'])
+                filtered_df = original_df[
+                    ~((original_df['benchmark'].isin(current_benchmarks)) &
+                    (original_df['model_name'] == model_name))
+                ]
+                filtered_dataset = Dataset.from_pandas(filtered_df)
+                filtered_dataset = ensure_string_columns(filtered_dataset)
+                all_datasets.append(filtered_dataset)
     else:
         # Same for huggingface hub
         possible_datasets = list_datasets(search=args.answers_path)
@@ -258,10 +378,10 @@ for model_path in args.model_path:
             filtered_dataset = original_dataset.filter(
                 lambda x: not (x['benchmark'] in current_benchmarks and x['model_name'] == model_name)
             )
-			filtered_dataset = ensure_string_columns(filtered_dataset)
+            filtered_dataset = ensure_string_columns(filtered_dataset)
             all_datasets.append(filtered_dataset)
 
-	dataset = ensure_string_columns(dataset)
+    dataset = ensure_string_columns(dataset)
     all_datasets.append(dataset)
     full_dataset = concatenate_datasets(all_datasets)
 
@@ -272,7 +392,9 @@ for model_path in args.model_path:
 
     if args.run_local:
         os.makedirs("eval_processing", exist_ok=True)
-        answers_filename = args.answers_path.replace("/", "_").replace("-", "_") + ".csv"
+        base_name = args.answers_path.replace("/", "_").replace("-", "_")
+        suffix = args.answers_shard_suffix if args.answers_shard_suffix else (f"_shard{args.data_parallel_rank}" if (args.data_parallel_size and args.data_parallel_size > 1) else "")
+        answers_filename = f"{base_name}{suffix}.csv"
         answers_filepath = os.path.join("eval_processing", answers_filename)
 
         final_df = full_dataset.to_pandas()
@@ -287,15 +409,41 @@ for model_path in args.model_path:
         )
         logging.info(f"**SAVED MODEL {model_name} AT: {answers_filepath}")
     else:
-        full_dataset.push_to_hub(args.answers_path)
-        logging.info(f"**SAVED MODEL {model_name} AT: {args.answers_path}")
+        if args.data_parallel_size and args.data_parallel_size > 1:
+            # Save shard locally instead of pushing to hub
+            os.makedirs("eval_processing", exist_ok=True)
+            base_name = args.answers_path.replace("/", "_").replace("-", "_")
+            suffix = args.answers_shard_suffix if args.answers_shard_suffix else f"_shard{args.data_parallel_rank}"
+            answers_filename = f"{base_name}{suffix}.csv"
+            answers_filepath = os.path.join("eval_processing", answers_filename)
+
+            final_df = full_dataset.to_pandas()
+            final_df = clean_data_for_csv(final_df)
+            final_df.to_csv(
+                answers_filepath,
+                index=False,
+                quoting=csv.QUOTE_MINIMAL,
+                doublequote=True,
+                escapechar='\\',
+                lineterminator='\n'
+            )
+            logging.info(f"Saved shard locally at {answers_filepath}; skipping hub push in data-parallel mode")
+        else:
+            full_dataset.push_to_hub(args.answers_path)
+            logging.info(f"**SAVED MODEL {model_name} AT: {args.answers_path}")
 
     del llm
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
 if args.run_local:
-    answers_filename = args.answers_path.replace("/", "_").replace("-", "_") + ".csv"
+    base_name = args.answers_path.replace("/", "_").replace("-", "_")
+    suffix = args.answers_shard_suffix if args.answers_shard_suffix else (f"_shard{args.data_parallel_rank}" if (args.data_parallel_size and args.data_parallel_size > 1) else "")
+    answers_filename = f"{base_name}{suffix}.csv"
     answers_filepath = os.path.join("eval_processing", answers_filename)
     logging.info(f"**ALL MODELS LOCALLY SAVED AT: {answers_filepath}")
 else:
-    logging.info(f"**ALL MODELS SAVED AT: {args.answers_path}")
+    if args.data_parallel_size and args.data_parallel_size > 1:
+        base_name = args.answers_path.replace("/", "_").replace("-", "_")
+        logging.info(f"**DATA-PARALLEL SHARDS SAVED LOCALLY UNDER eval_processing/{base_name}_shard*.csv; upstream merge/push handled by launcher.")
+    else:
+        logging.info(f"**ALL MODELS SAVED AT: {args.answers_path}")

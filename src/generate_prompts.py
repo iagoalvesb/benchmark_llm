@@ -72,6 +72,12 @@ parser.add_argument(
     help="If set, save results locally as CSV instead of pushing to HuggingFace Hub"
 )
 
+parser.add_argument(
+    "--use_outlines",
+    action="store_true",
+    help="When enabled, append JSON-format instruction to the final user message and leave assistant final message empty"
+)
+
 args = parser.parse_args()
 init_logger()
 
@@ -114,6 +120,28 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
         shots, shot_id_benches = get_shots(example['idx'], dataset, n_shots, args.use_fixed_seed)
         example_informations = benchmark.get_prompt_informations(example)
         
+        def build_outlines_instruction(benchmark_obj) -> str:
+            b = benchmark_obj
+            base = (
+                "IMPORTANTE: Responda APENAS no formato JSON com as chaves 'explicacao' e 'resposta'. "
+                "A chave 'explicacao' deve conter um raciocínio breve e objetivo. "
+                "A chave 'resposta' deve conter SOMENTE a resposta final no formato especificado abaixo.\n"
+            )
+            if b.answer_pattern == "yes_no":
+                spec = "Para 'resposta', use exatamente 'Sim' ou 'Não'."
+            elif b.answer_pattern == "multiple_choice":
+                spec = "Para 'resposta', use exatamente UMA letra entre 'A', 'B', 'C', 'D' ou 'E'."
+            elif b.answer_pattern == "multiple_choice_full_word":
+                spec = "Para 'resposta', use exatamente uma palavra entre 'Positivo', 'Negativo' ou 'Neutro'."
+            elif b.answer_pattern == "continue_value":
+                spec = "Para 'resposta', use apenas um número (use ponto decimal se necessário)."
+            elif b.answer_pattern == "integer_exact_math":
+                spec = "Para 'resposta', forneça apenas um número inteiro (sem LaTeX)."
+            else:
+                spec = "Para 'resposta', forneça apenas o valor final esperado para o benchmark."
+            example = "Exemplo: {\"explicacao\": \"...\", \"resposta\": \"...\"}"
+            return base + spec + "\n" + example
+        
         #example_informations['user_message'] = example_informations['user_message'].replace("\\uparrow$", "\\\\uparrow$")
         #example_informations['assistant_message_without_answer'] = example_informations['assistant_message_without_answer'].replace("\\uparrow$", "\\\\uparrow$")
         
@@ -127,13 +155,24 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
                 chat.append({"role": "user", "content": shot_informations['user_message']})
                 chat.append({"role": "assistant", "content": shot_informations['assistant_message_with_answer']})
 
-        chat.append({"role": "user", "content": example_informations['user_message']})
-        chat.append({"role": "assistant", "content": example_informations['assistant_message_without_answer']})
+        final_user_message = example_informations['user_message']
+        if args.use_outlines:
+            final_user_message = f"{final_user_message}\n\n{build_outlines_instruction(benchmark)}"
+            final_assistant_message = ""
+        else:
+            final_assistant_message = example_informations['assistant_message_without_answer']
+
+        chat.append({"role": "user", "content": final_user_message})
+        if not args.use_outlines:
+            chat.append({"role": "assistant", "content": final_assistant_message})
 
         # Generate prompts for each unique tokenizer
         prompt_dict = {}
         for tokenizer_path, tokenizer in tokenizers.items():
-            prompt = tokenizer.apply_chat_template(chat, tokenize=False, continue_final_message=True)
+            if args.use_outlines:
+                prompt = tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
+            else:   
+                prompt = tokenizer.apply_chat_template(chat, tokenize=False, continue_final_message=True)
             prompt_dict[tokenizer_path] = {
                 "prompt": prompt,
                 "models": tokenizer_to_models[tokenizer_path]

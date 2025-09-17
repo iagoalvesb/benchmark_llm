@@ -48,9 +48,13 @@ def get_config_with_defaults(yaml_config):
     defaults = {
         'num_shots': 5,
         'num_experiments': 3,
+        'use_outlines': True,
+        'max_new_tokens': 1024,
+        'batch_size': 32,
         'multi_gpu': {
             'enabled': False,
-            'num_gpus': 1
+            'num_gpus': 1,
+            'mode': 'data'
         },
         'flash_attention': False,
         'update_leaderboard': False,
@@ -82,6 +86,7 @@ def get_config_with_defaults(yaml_config):
     
     config['multi_gpu'].setdefault('enabled', False)
     config['multi_gpu'].setdefault('num_gpus', 1)
+    config['multi_gpu'].setdefault('mode', 'tensor')
     
     missing_fields = [field for field in required_fields if field not in config or config[field] is None]
     if missing_fields:
@@ -119,8 +124,12 @@ def generate_bash_variables(config):
     bash_vars.append(f'NUM_EXPERIMENTS={config["num_experiments"]}')
     bash_vars.append(f'RUN_ID="{config["run_id"]}"')
     bash_vars.append(f'BACKEND="{config["backend"]}"')  # Add backend variable
+    bash_vars.append(f'USE_OUTLINES={str(config.get("use_outlines", False)).lower()}')
+    bash_vars.append(f'MAX_NEW_TOKENS={config.get("max_new_tokens", 4)}')
+    bash_vars.append(f'BATCH_SIZE={config.get("batch_size", 32)}')
     bash_vars.append(f'MULTI_GPU_ENABLED={str(config["multi_gpu"]["enabled"]).lower()}')
     bash_vars.append(f'MULTI_GPU_NUM_GPUS={config["multi_gpu"]["num_gpus"]}')
+    bash_vars.append(f'MULTI_GPU_MODE="{config["multi_gpu"]["mode"]}"')
     bash_vars.append(f'FLASH_ATTENTION_ENABLED={str(config["flash_attention"]).lower()}')  # Add flash attention variable
     bash_vars.append(f'UPDATE_LEADERBOARD={str(config["update_leaderboard"]).lower()}')
     bash_vars.append(f'RUN_LOCAL={str(config["run_local"]).lower()}')
