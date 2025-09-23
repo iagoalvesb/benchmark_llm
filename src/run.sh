@@ -4,12 +4,23 @@ echo "Starting..."
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-# -------------------------
-# Docker Settings
-# -------------------------
+HF_TOKEN_EFF="${HUGGINGFACE_TOKEN:-${HUGGINGFACE_HUB_TOKEN:-${HF_TOKEN:-}}}"
 
 if [ -f /.dockerenv ]; then
-    python -c "import os; print('Running inside Docker – saving Hugging Face token...'); from huggingface_hub import HfFolder; HfFolder.save_token(os.getenv('HUGGINGFACE_TOKEN'))"
+  # caminho antigo
+  python -c "import os; from huggingface_hub import HfFolder; t=os.getenv('HUGGINGFACE_TOKEN'); t and HfFolder.save_token(t)"
+else
+    # salva o token se existir
+if [ -n "$HF_TOKEN_EFF" ]; then
+  python - <<'PY'
+import os
+tok = os.environ.get("HUGGINGFACE_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN") or os.environ.get("HF_TOKEN")
+if tok:
+    print("Persistindo token Hugging Face...")
+    from huggingface_hub import HfFolder
+    HfFolder.save_token(tok)
+PY
+fi
 fi
 
 # -------------------------
