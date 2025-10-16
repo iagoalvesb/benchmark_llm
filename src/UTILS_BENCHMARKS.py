@@ -139,7 +139,11 @@ class enem_2022_2023:
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
 
-        num_alternatives_example = len(example['alternatives']['text'])
+        if isinstance(example['alternatives'], str):
+            example['alternatives'] = ast.literal_eval(example['alternatives'])
+
+        alts = example['alternatives']
+        num_alternatives_example = len(alts['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {example['alternatives']['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
 
