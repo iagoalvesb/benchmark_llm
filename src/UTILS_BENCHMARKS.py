@@ -19,7 +19,7 @@ class assin2rte:
         assistant_message_positive = "Resposta: Sim, com base na nossa premissa, a hipótese acima é verdadeira."
         assistant_message_negative = "Resposta: Não, com base na nossa premissa, a hipótese acima não é verdadeira."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == '1' else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -62,11 +62,37 @@ class bluex:
         num_alternatives_example = len(example['choices']['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {example['choices']['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
+
         prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
-        
+
+        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
+        return prompt_informations
+
+class bluex_2022_2023:
+    def __init__(self):
+        self.dataset_path = "cemig-ceia/bluex_raw_noimg_2022_2023"
+        self.subset = None
+        self.split = "train"
+        self.important_columns = ["statement", "alternatives", "answer"]
+        self.label_column = "answer"
+        self.answer_pattern = "multiple_choice"
+        self.answer_type = "category"
+
+
+    def get_prompt_informations(self, example):
+        prompt_informations = {}
+        prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
+
+        num_alternatives_example = len(example['alternatives']['text'])
+        example_alternatives = [f"({chr(65 + asc_letter)}): {example['alternatives']['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
+        example_alternatives = "\n".join(example_alternatives)
+
+        prompt_informations['user_message'] = f"Pergunta:\n{example['statement']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
+
+        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
@@ -89,11 +115,38 @@ class enem:
         num_alternatives_example = len(example['choices']['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {example['choices']['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
+
         prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
-        
+
+        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
+        return prompt_informations
+
+
+class enem_2022_2023:
+    def __init__(self):
+        self.dataset_path = "cemig-ceia/vestibulares_concatened"
+        self.subset = None
+        self.split = "enem"
+        self.important_columns = ["statement", "alternatives", "answer"]
+        self.label_column = "answer"
+        self.answer_pattern = "multiple_choice"
+        self.answer_type = "category"
+
+
+    def get_prompt_informations(self, example):
+        prompt_informations = {}
+        prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
+
+        num_alternatives_example = len(example['alternatives']['text'])
+        example_alternatives = [f"({chr(65 + asc_letter)}): {example['alternatives']['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
+        example_alternatives = "\n".join(example_alternatives)
+
+        prompt_informations['user_message'] = f"Pergunta:\n{example['statement']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
+
+        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
@@ -117,7 +170,7 @@ class hatebr:
         assistant_message_positive = "Resposta: Sim, o texto é ofensivo."
         assistant_message_negative = "Resposta: Não, o texto não é ofensivo."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == '1' else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -141,7 +194,7 @@ class portuguese_hate_speech:
         assistant_message_positive = "Resposta: Sim, o texto é ofensivo."
         assistant_message_negative = "Resposta: Não, o texto não é ofensivo."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == '1' else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -165,7 +218,7 @@ class toxsyn_pt:
         assistant_message_positive = "Resposta: Sim, o texto é ofensivo."
         assistant_message_negative = "Resposta: Não, o texto não é ofensivo."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == '1' else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -189,7 +242,7 @@ class faquad:
         assistant_message_positive = "Resposta: Sim, a resposta dada satisfaz à pergunta."
         assistant_message_negative = "Resposta: Não, a resposta dada não satisfaz à pergunta."
         prompt_informations['assistant_message_with_answer'] = assistant_message_positive if example['label'] == 1 else assistant_message_negative
-        
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
 
@@ -201,7 +254,7 @@ class tweetsentbr:
         self.important_columns = ["sentence", "label"]
         self.label_column = "label"
         self.answer_pattern = "multiple_choice_full_word"
-        self.answer_type = "category"   
+        self.answer_type = "category"
 
     def get_prompt_informations(self, example):
         prompt_informations = {}
@@ -214,11 +267,11 @@ class tweetsentbr:
             "Neutro": "Resposta: Neutro"
         }
 
-        prompt_informations['assistant_message_with_answer'] = label_map.get(example['label']) 
-        
+        prompt_informations['assistant_message_with_answer'] = label_map.get(example['label'])
+
         prompt_informations['assistant_message_without_answer'] = "Resposta: "
         return prompt_informations
-    
+
 
 class oab:
     def __init__(self):
@@ -240,11 +293,11 @@ class oab:
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
+
         prompt_informations['user_message'] = f"Pergunta:\n{example['statement']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
-        
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
@@ -262,18 +315,18 @@ class poscomp:
     def get_prompt_informations(self, example):
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
-        
+
         alternatives_dict = ast.literal_eval(example['alternatives'])
 
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
-        
+
+
         prompt_informations['user_message'] = f"Pergunta:\n{example['statement']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
-        
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
@@ -291,18 +344,18 @@ class energy_regulacao:
     def get_prompt_informations(self, example):
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
-        
+
         alternatives_dict = ast.literal_eval(example['choices'])
 
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
-        
+
+
         prompt_informations['user_message'] = f"Tendo como base o contexto legal:\n{example['right_context']}\nSegue a pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e, tendo como base o contexto legal fornecido, responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta, com base no contexto legal fornecido, é a letra ({example['label']})"
-        
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta, com base no contexto legal fornecido, é a letra ("
         return prompt_informations
 
@@ -330,11 +383,11 @@ class gpqa_diamond:
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
         example_alternatives = "\n".join(example_alternatives)
-        
+
         prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
         prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
-        
+
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
@@ -382,6 +435,38 @@ class aime25:
 
 class mmlu:
     def __init__(self):
+        self.dataset_path = "cemig-ceia/benchmark_Qwen3-235B-A22B_MMLU_v2"
+        self.subset = None
+        self.split = "train"
+        self.important_columns = ["question", "choices", "answer"]
+        self.label_column = "answer"
+        self.answer_pattern = "multiple_choice"
+        self.answer_type = "category"
+
+
+    def get_prompt_informations(self, example):
+        prompt_informations = {}
+        prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
+
+        choices_data = example['choices']
+        if isinstance(choices_data, str):
+            alternatives_dict = ast.literal_eval(choices_data)
+        else:
+            alternatives_dict = choices_data
+
+        texts = alternatives_dict['text']
+        num_alternatives_example = len(texts)
+        example_alternatives = [f"({chr(65 + asc_letter)}): {texts[asc_letter]}" for asc_letter in range(num_alternatives_example)]
+        example_alternatives = "\n".join(example_alternatives)
+
+        prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
+
+        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
+        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
+        return prompt_informations
+
+class mmlu_english:
+    def __init__(self):
         self.dataset_path = "cemig-ceia/MMLU-formatted"
         self.subset = None
         self.split = "test"
@@ -412,7 +497,39 @@ class mmlu:
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
-class mmlu_redux:
+class mmlu_hard:
+    def __init__(self):
+        self.dataset_path = "cemig-ceia/mmlu-pt"
+        self.subset = None
+        self.split = "train"
+        self.important_columns = ["question", "choices", "answer"]
+        self.label_column = "answer"
+        self.answer_pattern = "multiple_choice"
+        self.answer_type = "category"
+
+
+    def get_prompt_informations(self, example):
+        prompt_informations = {}
+        prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
+
+        choices_data = example['choices']
+        if isinstance(choices_data, str):
+            alternatives_dict = ast.literal_eval(choices_data)
+        else:
+            alternatives_dict = choices_data
+
+        texts = alternatives_dict['text']
+        num_alternatives_example = len(texts)
+        example_alternatives = [f"({chr(65 + asc_letter)}): {texts[asc_letter]}" for asc_letter in range(num_alternatives_example)]
+        example_alternatives = "\n".join(example_alternatives)
+
+        prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
+
+        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
+        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
+        return prompt_informations
+
+class mmlu_redux_english:
     def __init__(self):
         self.dataset_path = "cemig-ceia/MMLU-Redux-formatted"
         self.subset = None
@@ -444,7 +561,7 @@ class mmlu_redux:
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
-class mmlu_pro:
+class mmlu_pro_english:
     def __init__(self):
         self.dataset_path = "cemig-ceia/MMLU-Pro-formatted"
         self.subset = None
@@ -481,6 +598,38 @@ class mmlu_pro:
 
 class supergpqa:
     def __init__(self):
+        self.dataset_path = "cemig-ceia/benchmark_Qwen3-235B-A22B_SuperGPQA_v1"
+        self.subset = None
+        self.split = "train"
+        self.important_columns = ["question", "choices", "answer"]
+        self.label_column = "answer"
+        self.answer_pattern = "multiple_choice"
+        self.answer_type = "category"
+
+
+    def get_prompt_informations(self, example):
+        prompt_informations = {}
+        prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
+
+        choices_data = example['choices']
+        if isinstance(choices_data, str):
+            alternatives_dict = ast.literal_eval(choices_data)
+        else:
+            alternatives_dict = choices_data
+
+        num_alternatives_example = len(alternatives_dict['text'])
+        example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
+        example_alternatives = "\n".join(example_alternatives)
+
+        prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
+
+        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
+
+        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
+        return prompt_informations
+
+class supergpqa_lucas:
+    def __init__(self):
         self.dataset_path = "cemig-ceia/SuperGPQA-formatted"
         self.subset = None
         self.split = "test"
@@ -516,8 +665,8 @@ class supergpqa:
 BENCHMARKS_INFORMATIONS = {
     "assin2rte": assin2rte(),
     "assin2sts": assin2sts(),
-    "bluex": bluex(),
-    "enem": enem(),
+    "bluex": bluex_2022_2023(),
+    "enem": enem_2022_2023(),
     "hatebr": hatebr(),
     "portuguese_hate_speech": portuguese_hate_speech(),
     "toxsyn_pt": toxsyn_pt(),
@@ -530,8 +679,9 @@ BENCHMARKS_INFORMATIONS = {
     #Inserir a partir daqui
     "aime24": aime24(),
     "aime25": aime25(),
-    "mmlu": mmlu(),
-    "mmlu_redux": mmlu_redux(),
-    "mmlu_pro": mmlu_pro(),
+    "mmlu": mmlu(), # Modifiquei para usar a do Emanuel
+    "mmlu_hard": mmlu_hard(),
+    "mmlu_redux": mmlu_redux_english(),
+    "mmlu_pro": mmlu_pro_english(),
     "supergpqa": supergpqa(),
     }
