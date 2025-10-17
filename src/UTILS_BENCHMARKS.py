@@ -82,6 +82,10 @@ class bluex_2022_2023:
 
 
     def get_prompt_informations(self, example):
+        
+        if isinstance(example['alternatives'], str):
+            example['alternatives'] = ast.literal_eval(example['alternatives'])
+        
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
 
