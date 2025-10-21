@@ -296,7 +296,11 @@ class oab:
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
 
-        alternatives_dict = ast.literal_eval(example['alternatives'])
+        alts = example['alternatives']
+        if isinstance(alts, str):
+            alternatives_dict = ast.literal_eval(alts)
+        else:
+            alternatives_dict = alts
 
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
@@ -324,7 +328,11 @@ class poscomp:
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
 
-        alternatives_dict = ast.literal_eval(example['alternatives'])
+        alts = example['alternatives']
+        if isinstance(alts, str):
+            alternatives_dict = ast.literal_eval(alts)
+        else:
+            alternatives_dict = alts
 
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
@@ -353,7 +361,11 @@ class energy_regulacao:
         prompt_informations = {}
         prompt_informations['base_system_message'] = "Você é um assistente prestativo, responda de forma direta e objetiva."
 
-        alternatives_dict = ast.literal_eval(example['choices'])
+        choices_data = example['choices']
+        if isinstance(choices_data, str):
+            alternatives_dict = ast.literal_eval(choices_data)
+        else:
+            alternatives_dict = choices_data
 
         num_alternatives_example = len(alternatives_dict['text'])
         example_alternatives = [f"({chr(65 + asc_letter)}): {alternatives_dict['text'][asc_letter]}" for asc_letter in range(num_alternatives_example)]
