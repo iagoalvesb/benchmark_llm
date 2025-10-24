@@ -313,6 +313,7 @@ class oab:
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
+
 class poscomp:
     def __init__(self):
         self.dataset_path = "cemig-ceia/vestibulares_concatened"
@@ -346,6 +347,7 @@ class poscomp:
         prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
 
+
 class energy_regulacao:
     def __init__(self):
         self.dataset_path = "cemig-ceia/energy-eval"
@@ -372,12 +374,13 @@ class energy_regulacao:
         example_alternatives = "\n".join(example_alternatives)
 
 
-        prompt_informations['user_message'] = f"Tendo como base o contexto legal:\n{example['right_context']}\nSegue a pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e, tendo como base o contexto legal fornecido, responda corretamente a pergunta:\n\n{example_alternatives}"
+        prompt_informations['user_message'] = f"Pergunta:\n{example['question']}.\n\nLeia as alternativas abaixo e responda corretamente a pergunta:\n\n{example_alternatives}"
 
-        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta, com base no contexto legal fornecido, é a letra ({example['label']})"
+        prompt_informations['assistant_message_with_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ({example['label']})"
 
-        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta, com base no contexto legal fornecido, é a letra ("
+        prompt_informations['assistant_message_without_answer'] = f"Lendo as alternativas {''.join(('(' + chr(65 + asc_letter) + '),' for asc_letter in range(num_alternatives_example)))} a alternativa que responde corretamente a pergunta é a letra ("
         return prompt_informations
+
 
 class gpqa_diamond:
     def __init__(self):
