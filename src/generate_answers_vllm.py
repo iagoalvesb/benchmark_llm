@@ -21,7 +21,7 @@ from typing import Optional
 
 torch.backends.cudnn.deterministic = True
 os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "1"
-os.environ["VLLM_DISABLE_COMPILE_CACHE"] = "1"
+#os.environ["VLLM_DISABLE_COMPILE_CACHE"] = "1"
 os.environ["VLLM_USE_V1"] = "1"
 
 random.seed(42)
@@ -209,13 +209,14 @@ for model_path in args.model_path:
 
     llm_kwargs = {
         "model": model_path,
-        "dtype": "bfloat16",
+        #"dtype": "bfloat16",
         "tensor_parallel_size": args.tensor_parallel_size,
         "gpu_memory_utilization": 0.9,
         "trust_remote_code": True,
         "enforce_eager": False,
         "enable_prefix_caching": False,
         "seed": 42,
+        "max_model_len": 16284,  # Default max model length; can be adjusted as needed
     }
 
     # Retry LLM initialization
