@@ -21,8 +21,7 @@ src/run.sh yaml/config.yaml
 
 ### Configuração
 
-1. Crie um .env com um token do huggingface (HUGGINGFACE_TOKEN)
-2. Crie um arquivo YAML de configuração baseado no exemplo abaixo:
+1. Crie um arquivo YAML de configuração baseado no exemplo abaixo:
 
 #### yaml/config.example.yaml
 ```yaml
@@ -34,9 +33,6 @@ backend: "vllm"
 
 # Modelos a serem avaliados
 model_paths:
-  - path: "Qwen/Qwen2.5-0.5B-Instruct"
-    custom: false
-    tokenizer_path: "Qwen/Qwen2.5-0.5B-Instruct"
   - path: "meta-llama/Llama-3.2-3B-Instruct"
     custom: false
     tokenizer_path: "meta-llama/Llama-3.2-3B-Instruct"
@@ -48,22 +44,30 @@ multi_gpu:
 
 # Parâmetros do evaluation
 run_local: true        # Se é para salvar os resultados localmente
-flash_attention: false # Se é para usar FA2 ou não
 num_shots: 5           # Quantidade de exemplos no few-shot
-num_experiments: 3     # Número de experimentos por sample
+num_experiments: 1     # Número de variações no fewshot
 update_leaderboard: false  # Atualizar leaderboard ao final
 
 # Benchmarks a executar
 benchmark_names:
-  - "assin2rte"
-  - "assin2sts"
-  - "bluex"
-  - "enem"
-  - "hatebr"
-  - "portuguese_hate_speech"
-  - "faquad"
-  - "tweetsentbr"
-  - "oab"
+    - assin2rte
+    - assin2sts
+    - bluex
+    - enem
+    - hatebr
+    - portuguese_hate_speech
+    - toxsyn_pt
+    - faquad
+    - tweetsentbr
+    - oab
+    - poscomp
+    - energy_regulacao
+    - aime24
+    - aime25
+    - mmlu
+    - mmlu_redux
+    - mmlu_pro
+    - supergpqa
 ```
 
 
@@ -84,10 +88,20 @@ benchmark_names:
 - **benchmark_names**: Lista de benchmarks disponíveis em `src/UTILS_BENCHMARKS.py` (opcional)
 
 
-### Rodando por Docker
+## Rodando por Docker
+### 1. Escolha o dockerfile com base no Cuda [11.8 ou 12.9]
+**Build**: `docker build -f .devcontainer/Dockerfile_cuda118 -t energygpt-eval .`
 
-**Build**: `docker build -f .devcontainer/dockerfile -t energygpt-eval ..`
-**Run**: `docker run --rm --gpus=all --env-file .env -v "$(pwd):/app/aksjlmklsdjf" energygpt-eval`
+**Run**: `
+
+# 1. Inserir HUGGINGFACE_TOKEN
+# 2. Inserir arquivo config.yaml manter path interno: /src/config.yaml
+# 3. Desejavel especificar cache dir inteiro para /cache
+docker run --rm --gpus=all -e HUGGINGFACE_TOKEN=hf_Kkg..... \ 
+  -v "$PWD/config_ext.yaml":/workspace/src/config.yaml \ 
+  -v $PWD/.cache:/cache/hf energygpt-eval
+
+`
 
 Obs: No dockerfile, a imagem base do pytorch que está sendo usada usa o CUDA 12.1 por causa da 4090. Se tiver algum problema de build, utilize uma imagem do pytorch differente
 
