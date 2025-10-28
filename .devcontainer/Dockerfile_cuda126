@@ -1,0 +1,32 @@
+FROM pytorch/pytorch:2.8.0-cuda12.6-cudnn9-devel
+
+ARG NPROC=32
+ENV MAX_JOBS=${NPROC} \
+    CMAKE_BUILD_PARALLEL_LEVEL=${NPROC} \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl ca-certificates build-essential ninja-build \
+ && rm -rf /var/lib/apt/lists/*
+
+
+# VLLM for CUDA 12.6
+RUN pip install -U pip setuptools wheel packaging ninja && \
+    pip install https://github.com/vllm-project/vllm/releases/download/v0.10.0/vllm-0.10.0+cu126-cp38-abi3-manylinux1_x86_64.whl && \
+     pip install datasets transformers accelerate scikit-learn outlines bitsandbytes pydantic pandas
+
+
+
+ENV HF_HOME=/cache/hf \
+    TRANSFORMERS_CACHE=/cache/hf/hub \
+    HF_DATASETS_CACHE=/cache/hf/datasets
+
+WORKDIR /workspace
+COPY . /workspace/
+RUN chmod +x src/run.sh
+
+
+ENTRYPOINT ["/bin/bash", "-lc", "\
+  /workspace/src/run.sh ${CONFIG_FILE:-/workspace/src/config.yaml} 
+"]
