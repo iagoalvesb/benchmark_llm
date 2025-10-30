@@ -34,6 +34,7 @@ BENCHMARK_TO_AREA = {
     'aime24':                 'STEM',
     'aime25':                 'STEM',
     'mmlu':                   'General Tasks (Inglês)',
+    'mmlu_hard':              'General Tasks (Inglês)',
     'mmlu_redux':             'General Tasks (Inglês)',
     'mmlu_pro':               'General Tasks (Inglês)',
     'supergpqa':              'General Tasks (Inglês)',
@@ -71,6 +72,7 @@ BENCHMARK_TO_COLUMN = {
     'aime24':                 'AIME 24',
     'aime25':                 'AIME 25',
     'mmlu':                   'MMLU',
+    'mmlu_hard':                   'MMLU-Hard',
     'mmlu_redux':             'MMLU-Redux',
     'mmlu_pro':               'MMLU-Pro',
     'supergpqa':              'SuperGPQA'
@@ -108,6 +110,7 @@ BENCHMARK_TO_METRIC = {
     'aime24':                 ['accuracy'],
     'aime25':                 ['accuracy'],
     'mmlu':                   ['accuracy'],
+    'mmlu_hard':              ['accuracy'],
     'mmlu_redux':             ['accuracy'],
     'mmlu_pro':               ['accuracy'],
     'supergpqa':              ['accuracy'],
