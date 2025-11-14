@@ -51,6 +51,7 @@ echo "  RUN_ID: $RUN_ID"
 echo "  USE_OUTLINES: $USE_OUTLINES"
 echo "  MAX_NEW_TOKENS: $MAX_NEW_TOKENS"
 echo "  BATCH_SIZE: $BATCH_SIZE"
+echo "  USE_PERCENTAGE_DATASET: $USE_PERCENTAGE_DATASET"
 echo "  MULTI_GPU_ENABLED: $MULTI_GPU_ENABLED"
 echo "  MULTI_GPU_NUM_GPUS: $MULTI_GPU_NUM_GPUS"
 echo "  MULTI_GPU_MODE: $MULTI_GPU_MODE"
@@ -86,6 +87,7 @@ PROMPT_ARGS=(
   "--model_tokenizers" "${MODEL_TOKENIZERS[@]}"
   "--benchmark_names" "${BENCHMARK_NAMES[@]}"
   "--prompts_path" "${PROMPTS_PATH}"
+  "--use_percentage_dataset" "${USE_PERCENTAGE_DATASET}"
 )
 
 if [ "$RUN_LOCAL" = "true" ]; then
@@ -100,20 +102,35 @@ python "${SCRIPT_DIR}/generate_prompts.py" "${PROMPT_ARGS[@]}"
 
 echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"
 
+# exit 0
 
 # -------------------------
 # Generating Answers
 # -------------------------
 
-
 echo "Running answer generation..."
 
+# Sep models by local vs API
+API_MODELS=()
+LOCAL_MODELS=()
+for i in "${!MODEL_PATHS[@]}"; do
+  tp="${MODEL_TOKENIZERS[$i]}"
+  mp="${MODEL_PATHS[$i]}"
+  if [ "$tp" = "api" ]; then
+    API_MODELS+=("$mp")
+  else
+    LOCAL_MODELS+=("$mp")
+  fi
+done
+
+echo "Local models: ${LOCAL_MODELS[*]:-(none)}"
+echo "API models:   ${API_MODELS[*]:-(none)}"
+
+# Base args used for local backends; we rebuild --model_path per-branch
 ANSWER_ARGS=(
   "--prompts_path" "${PROMPTS_PATH}"
   "--answers_path" "${ANSWERS_PATH}"
-  "--model_path" "${MODEL_PATHS[@]}"
 )
-
 if [ "$RUN_LOCAL" = "true" ]; then
     ANSWER_ARGS+=("--run_local")
 fi
@@ -121,7 +138,9 @@ fi
 if [ "$BACKEND" = "vllm" ]; then
     echo "Using vLLM backend"
 
-    if [ "$MULTI_GPU_ENABLED" = "true" ] && [ "$MULTI_GPU_MODE" = "data" ]; then
+    if [ "${#LOCAL_MODELS[@]}" -eq 0 ]; then
+        echo "No local models to run on vLLM."
+    elif [ "$MULTI_GPU_ENABLED" = "true" ] && [ "$MULTI_GPU_MODE" = "data" ]; then
         echo "Using multi-GPU with $MULTI_GPU_NUM_GPUS GPUs (data parallel)"
         # Determine GPU IDs from CUDA_VISIBLE_DEVICES if set, otherwise 0..N-1
         ORIGINAL_CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES}"
@@ -139,8 +158,8 @@ if [ "$BACKEND" = "vllm" ]; then
         BASE_NAME="${BASE_NAME//-/_}"
         SHARD_DIR="eval_processing"
 
-        # Iterate models sequentially to avoid overlapping model loads
-        for MODEL in "${MODEL_PATHS[@]}"; do
+        # Iterate local models sequentially to avoid overlapping model loads
+        for MODEL in "${LOCAL_MODELS[@]}"; do
             MODEL_NAME="${MODEL##*/}"
             # Common args for this model
             COMMON_ARGS=(
@@ -282,29 +301,50 @@ PY
         fi
         ANSWER_ARGS+=("--max_new_tokens" "${MAX_NEW_TOKENS}")
         ANSWER_ARGS+=("--batch_size" "${BATCH_SIZE}")
-
-        python "${SCRIPT_DIR}/generate_answers_vllm.py" "${ANSWER_ARGS[@]}"
+        # Only local models here
+        python "${SCRIPT_DIR}/generate_answers_vllm.py" "${ANSWER_ARGS[@]}" --model_path "${LOCAL_MODELS[@]}"
     fi
 
 elif [ "$BACKEND" = "hf" ]; then
     echo "Using HuggingFace backend"
 
-    if [ "$FLASH_ATTENTION_ENABLED" = "true" ]; then
-        ANSWER_ARGS+=("--use_flash_attention")
-    fi
-
-    if [ "$MULTI_GPU_ENABLED" = "true" ]; then
-        echo "Using multi-GPU with $MULTI_GPU_NUM_GPUS GPUs (accelerate)"
-        ANSWER_ARGS+=("--use_accelerate")
-        accelerate launch --num_processes="$MULTI_GPU_NUM_GPUS" "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}"
+    if [ "${#LOCAL_MODELS[@]}" -eq 0 ]; then
+        echo "No local models to run on HF."
     else
-        echo "Using single GPU/CPU"
-        python "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}"
+        if [ "$FLASH_ATTENTION_ENABLED" = "true" ]; then
+            ANSWER_ARGS+=("--use_flash_attention")
+        fi
+
+        if [ "$MULTI_GPU_ENABLED" = "true" ]; then
+            echo "Using multi-GPU with $MULTI_GPU_NUM_GPUS GPUs (accelerate)"
+            ANSWER_ARGS+=("--use_accelerate")
+            accelerate launch --num_processes="$MULTI_GPU_NUM_GPUS" "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}" --model_path "${LOCAL_MODELS[@]}"
+        else
+            echo "Using single GPU/CPU"
+            python "${SCRIPT_DIR}/generate_answers.py" "${ANSWER_ARGS[@]}" --model_path "${LOCAL_MODELS[@]}"
+        fi
     fi
 
 else
     echo "Error: Unknown backend '$BACKEND'. Must be 'hf' or 'vllm'"
     exit 1
+fi
+
+# Run API models after local models
+if [ "${#API_MODELS[@]}" -gt 0 ]; then
+  echo "Running API models: ${API_MODELS[*]}"
+  API_ARGS=(
+    "--prompts_path" "${PROMPTS_PATH}"
+    "--answers_path" "${ANSWERS_PATH}"
+    "--model_path" "${API_MODELS[@]}"
+  )
+  if [ "$RUN_LOCAL" = "true" ]; then
+      API_ARGS+=("--run_local")
+  fi
+  if [ "$USE_OUTLINES" = "true" ]; then
+      API_ARGS+=("--use_outlines")
+  fi
+  python "${SCRIPT_DIR}/generate_answers_api.py" "${API_ARGS[@]}"
 fi
 
 echo "Answer generation completed. Outputs saved to '${ANSWERS_PATH}'"

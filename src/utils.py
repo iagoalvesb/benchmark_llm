@@ -337,3 +337,60 @@ def parse_answer(example):
             raise ValueError(f"Unknown answer pattern: {benchmark.answer_pattern}")
     except:
         return None
+
+def build_outlines_instruction(benchmark_obj) -> str:
+    b = benchmark_obj
+    base = (
+        "IMPORTANTE: Responda APENAS no formato JSON com as chaves 'explicacao' e 'resposta'. "
+        "A chave 'explicacao' deve conter um raciocínio breve e objetivo. "
+        "A chave 'resposta' deve conter SOMENTE a resposta final no formato especificado abaixo.\n"
+    )
+    if b.answer_pattern == "yes_no":
+        spec = "Para 'resposta', use exatamente 'Sim' ou 'Não'."
+    elif b.answer_pattern == "multiple_choice":
+        spec = "Para 'resposta', use exatamente UMA letra entre 'A', 'B', 'C', 'D' ou 'E'."
+    elif b.answer_pattern == "multiple_choice_full_word":
+        spec = "Para 'resposta', use exatamente uma palavra entre 'Positivo', 'Negativo' ou 'Neutro'."
+    elif b.answer_pattern == "continue_value":
+        spec = "Para 'resposta', use apenas um número (use ponto decimal se necessário)."
+    elif b.answer_pattern == "integer_exact_math":
+        spec = "Para 'resposta', forneça apenas um número inteiro (sem LaTeX)."
+    else:
+        spec = "Para 'resposta', forneça apenas o valor final esperado para o benchmark."
+    example = "Exemplo: {\"explicacao\": \"...\", \"resposta\": \"...\"}"
+    return base + spec + "\n" + example
+
+def _escape_xml(s: str) -> str:
+    return (s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;"))
+
+def build_api_user_block(benchmark, shots_rows, example_info, use_outlines: bool) -> tuple[str, str | None]:
+    """
+    Returns: user_text, assistant_hint_or_none
+    - user_text: includes 'Example shots:' with Shot i sections, then the target sample.
+    - assistant_hint_or_none: None when use_outlines, else assistant_message_without_answer.
+    """
+    # normalize shot payloads
+    shots_txt = []
+    for k, s in enumerate(shots_rows, start=1):
+        si = benchmark.get_prompt_informations(s)
+        shots_txt.append(
+            f"Shot {k}:\n"
+            f"Usuário: {si['user_message']}\n"
+            f"Assistente: {si['assistant_message_with_answer']}"
+        )
+
+    # target sample
+    user_core = example_info["user_message"]
+    if use_outlines:
+        # keep your existing JSON-output instruction
+        user_core = user_core + "\n\n" + build_outlines_instruction(benchmark)
+        assistant_hint = None
+    else:
+        assistant_hint = example_info["assistant_message_without_answer"]
+
+    if shots_txt:
+        user_text = "Example shots:\n" + "\n\n".join(shots_txt) + "\n\n" + "Sample to evaluate:\n" + user_core
+    else:
+        user_text = user_core
+
+    return user_text, assistant_hint

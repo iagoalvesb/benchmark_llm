@@ -51,6 +51,7 @@ def get_config_with_defaults(yaml_config):
         'use_outlines': True,
         'max_new_tokens': 1024,
         'batch_size': 32,
+        'use_percentage_dataset': 100,
         'multi_gpu': {
             'enabled': False,
             'num_gpus': 1,
@@ -61,7 +62,7 @@ def get_config_with_defaults(yaml_config):
         'run_local': False,
         'benchmark_names': [
             "assin2rte",
-            "assin2sts", 
+            "assin2sts",
             "bluex",
             "enem",
             "hatebr",
@@ -114,7 +115,10 @@ def get_config_with_defaults(yaml_config):
     
     if not isinstance(config['benchmark_names'], list) or len(config['benchmark_names']) == 0:
         raise ValueError("'benchmark_names' must be a non-empty list")
-    
+
+    if not isinstance(config['use_percentage_dataset'], (int, float)) or not (0 <= config['use_percentage_dataset'] <= 100):
+        raise ValueError("'use_percentage_dataset' must be a number between 0 and 100")
+
     return config
 
 def generate_bash_variables(config):    
@@ -127,6 +131,7 @@ def generate_bash_variables(config):
     bash_vars.append(f'USE_OUTLINES={str(config.get("use_outlines", False)).lower()}')
     bash_vars.append(f'MAX_NEW_TOKENS={config.get("max_new_tokens", 4)}')
     bash_vars.append(f'BATCH_SIZE={config.get("batch_size", 32)}')
+    bash_vars.append(f'USE_PERCENTAGE_DATASET={config.get("use_percentage_dataset", 100)}')
     bash_vars.append(f'MULTI_GPU_ENABLED={str(config["multi_gpu"]["enabled"]).lower()}')
     bash_vars.append(f'MULTI_GPU_NUM_GPUS={config["multi_gpu"]["num_gpus"]}')
     bash_vars.append(f'MULTI_GPU_MODE="{config["multi_gpu"]["mode"]}"')
