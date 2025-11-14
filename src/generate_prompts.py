@@ -3,6 +3,7 @@ from datasets import load_dataset, Dataset, concatenate_datasets, Value
 import random
 import os
 import logging
+import math
 from logger_config import init_logger
 import pandas as pd
 import torch
@@ -12,6 +13,7 @@ import re
 import argparse
 
 from UTILS_BENCHMARKS import BENCHMARKS_INFORMATIONS
+from utils import build_api_user_block, _escape_xml
 from functools import partial
 
 parser = argparse.ArgumentParser()
@@ -78,6 +80,13 @@ parser.add_argument(
     help="When enabled, append JSON-format instruction to the final user message and leave assistant final message empty"
 )
 
+parser.add_argument(
+    "--use_percentage_dataset",
+    type=float,
+    default=100.0,
+    help="Percentage of the dataset to use (0-100), always rounds up"
+)
+
 args = parser.parse_args()
 init_logger()
 
@@ -89,17 +98,40 @@ for model_path, tokenizer_path in zip(args.model_paths, args.model_tokenizers):
 
 tokenizers = {}
 for tokenizer_path in tokenizer_to_models.keys():
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-    tokenizer.pad_token_id = tokenizer.eos_token_id
-    tokenizers[tokenizer_path] = tokenizer
+    if tokenizer_path == "api":
+        continue
+    tok = AutoTokenizer.from_pretrained(tokenizer_path)
+    tok.pad_token_id = tok.eos_token_id
+    tokenizers[tokenizer_path] = tok
 
+def build_outlines_instruction(benchmark_obj) -> str:
+    b = benchmark_obj
+    base = (
+        "IMPORTANTE: Responda APENAS no formato JSON com as chaves 'explicacao' e 'resposta'. "
+        "A chave 'explicacao' deve conter um raciocínio breve e objetivo. "
+        "A chave 'resposta' deve conter SOMENTE a resposta final no formato especificado abaixo.\n"
+    )
+    if b.answer_pattern == "yes_no":
+        spec = "Para 'resposta', use exatamente 'Sim' ou 'Não'."
+    elif b.answer_pattern == "multiple_choice":
+        spec = "Para 'resposta', use exatamente UMA letra entre 'A', 'B', 'C', 'D' ou 'E'."
+    elif b.answer_pattern == "multiple_choice_full_word":
+        spec = "Para 'resposta', use exatamente uma palavra entre 'Positivo', 'Negativo' ou 'Neutro'."
+    elif b.answer_pattern == "continue_value":
+        spec = "Para 'resposta', use apenas um número (use ponto decimal se necessário)."
+    elif b.answer_pattern == "integer_exact_math":
+        spec = "Para 'resposta', forneça apenas um número inteiro (sem LaTeX)."
+    else:
+        spec = "Para 'resposta', forneça apenas o valor final esperado para o benchmark."
+    example = "Exemplo: {\"explicacao\": \"...\", \"resposta\": \"...\"}"
+    return base + spec + "\n" + example
 
 def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots, use_fixed_seed=args.use_fixed_seed, seed=42):
     if n_shots == 0:
         return [], []
-    
+
     possible_shots_indx = [i for i, example in enumerate(dataset_fewshot) if example['idx'] != id_query]
-    
+
     if use_fixed_seed:
         random_state = random.Random(seed)
         shot_positions = random_state.sample(possible_shots_indx, n_shots)
@@ -111,42 +143,19 @@ def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots, use_fixed_seed=ar
     shot_id_benches = [shots[i]['id_bench'] for i in range(len(shots))]
     return shots, shot_id_benches
 
-
-
-
-
 def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_experiments=args.n_experiments):
     for i in range(n_experiments):
-        shots, shot_id_benches = get_shots(example['idx'], dataset, n_shots, args.use_fixed_seed)
+        # shots, shot_id_benches = get_shots(example['idx'], dataset, n_shots, args.use_fixed_seed)
+        seed_i = 42 + i if args.use_fixed_seed else None
+        shots, shot_id_benches = get_shots(example['idx'], dataset_benchmark, n_shots,
+                                        use_fixed_seed=args.use_fixed_seed, seed=seed_i)
         example_informations = benchmark.get_prompt_informations(example)
-        
-        def build_outlines_instruction(benchmark_obj) -> str:
-            b = benchmark_obj
-            base = (
-                "IMPORTANTE: Responda APENAS no formato JSON com as chaves 'explicacao' e 'resposta'. "
-                "A chave 'explicacao' deve conter um raciocínio breve e objetivo. "
-                "A chave 'resposta' deve conter SOMENTE a resposta final no formato especificado abaixo.\n"
-            )
-            if b.answer_pattern == "yes_no":
-                spec = "Para 'resposta', use exatamente 'Sim' ou 'Não'."
-            elif b.answer_pattern == "multiple_choice":
-                spec = "Para 'resposta', use exatamente UMA letra entre 'A', 'B', 'C', 'D' ou 'E'."
-            elif b.answer_pattern == "multiple_choice_full_word":
-                spec = "Para 'resposta', use exatamente uma palavra entre 'Positivo', 'Negativo' ou 'Neutro'."
-            elif b.answer_pattern == "continue_value":
-                spec = "Para 'resposta', use apenas um número (use ponto decimal se necessário)."
-            elif b.answer_pattern == "integer_exact_math":
-                spec = "Para 'resposta', forneça apenas um número inteiro (sem LaTeX)."
-            else:
-                spec = "Para 'resposta', forneça apenas o valor final esperado para o benchmark."
-            example = "Exemplo: {\"explicacao\": \"...\", \"resposta\": \"...\"}"
-            return base + spec + "\n" + example
-        
+
         #example_informations['user_message'] = example_informations['user_message'].replace("\\uparrow$", "\\\\uparrow$")
         #example_informations['assistant_message_without_answer'] = example_informations['assistant_message_without_answer'].replace("\\uparrow$", "\\\\uparrow$")
-        
+
         chat = [{"role": "system", "content": example_informations['base_system_message']}]
-        
+
         if shots:
             for shot in shots:
                 shot_informations = benchmark.get_prompt_informations(shot)
@@ -168,19 +177,87 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
 
         # Generate prompts for each unique tokenizer
         prompt_dict = {}
-        for tokenizer_path, tokenizer in tokenizers.items():
+        for tokenizer_path in tokenizer_to_models.keys():
+            if tokenizer_path == "api":
+                user_text, assistant_hint = build_api_user_block(
+                    benchmark, shots, example_informations, args.use_outlines
+                )
+                # wrap with simple tags to keep structure explicit
+                parts = []
+                parts.append(f"<system>{_escape_xml(example_informations['base_system_message'])}</system>")
+                parts.append(f"<user>{_escape_xml(user_text)}</user>")
+                if assistant_hint is not None:
+                    parts.append(f"<assistant>{_escape_xml(assistant_hint)}</assistant>")
+                raw_prompt = "\n".join(parts)
+
+                prompt_dict[tokenizer_path] = {
+                    "prompt": raw_prompt,
+                    "models": tokenizer_to_models[tokenizer_path],
+                }
+                continue
+
+            tokenizer = tokenizers[tokenizer_path]
             if args.use_outlines:
-                prompt = tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
-            else:   
-                prompt = tokenizer.apply_chat_template(chat, tokenize=False, continue_final_message=True)
+                rendered = tokenizer.apply_chat_template(
+                    chat, tokenize=False, add_generation_prompt=True
+                )
+            else:
+                rendered = tokenizer.apply_chat_template(
+                    chat, tokenize=False, continue_final_message=True
+                )
             prompt_dict[tokenizer_path] = {
-                "prompt": prompt,
-                "models": tokenizer_to_models[tokenizer_path]
+                "prompt": rendered,
+                "models": tokenizer_to_models[tokenizer_path],
             }
-        
+
         example[f"prompt_{i}"] = json.dumps(prompt_dict, ensure_ascii=False)
         example[f"shot_indices_{i}"] = shot_id_benches
     return example
+
+def load_benchmark_dataset(benchmark):
+    path = benchmark.dataset_path
+    subsets = benchmark.subset
+
+    if subsets is None or isinstance(subsets, str):
+        ddict = load_dataset(path, subsets)
+        if hasattr(benchmark, 'split') and benchmark.split == "poscomp":
+            ds = ddict['poscomp']
+            ds = ds.map(sanitize_latex, num_proc=1, desc="Sanitizing alternatives for poscomp")
+        elif hasattr(benchmark, 'split'):
+            ds = ddict[benchmark.split]
+        else:
+            ds = ddict['test'] if 'test' in ddict.keys() else ddict['train']
+        return ds
+
+    if not isinstance(subsets, (list, tuple)):
+        raise TypeError("benchmark.subset must be str | list[str] | None")
+
+    loaded = []
+    first_features = None
+    for sub in subsets:
+        ddict = load_dataset(path, sub)
+        if hasattr(benchmark, 'split') and benchmark.split == "poscomp":
+            ds = ddict['poscomp']
+            ds = ds.map(sanitize_latex, num_proc=1, desc=f"Sanitizing alternatives for poscomp ({sub})")
+        elif hasattr(benchmark, 'split'):
+            ds = ddict[benchmark.split]
+        else:
+            ds = ddict['test'] if 'test' in ddict.keys() else ddict['train']
+
+        # schema check
+        if first_features is None:
+            first_features = ds.features
+        else:
+            if ds.features != first_features:
+                raise ValueError(
+                    f"Subset '{sub}' has a different schema. "
+                    f"Expected {list(first_features.keys())}, got {list(ds.features.keys())}."
+                )
+
+        ds = ds.add_column("subset_name", [sub] * len(ds))
+        loaded.append(ds)
+
+    return concatenate_datasets(loaded)
 
 def sanitize_latex(example):
     """
@@ -221,20 +298,21 @@ def sanitize_latex(example):
 all_benchmarks = []
 for benchmark_name in args.benchmark_names:
     benchmark = BENCHMARKS_INFORMATIONS[benchmark_name]
-    dataset = load_dataset(benchmark.dataset_path, benchmark.subset)
-    if hasattr(benchmark, 'split') and benchmark.split=="poscomp": #O poscomp é problematico, ele tem caracteres não escapados (começam com \u) e têm que ser tratados.
-        dataset = dataset[benchmark.split]
-        dataset = dataset.map(sanitize_latex, num_proc=1, desc="Sanitizing alternatives for poscomp")
-    elif hasattr(benchmark, 'split'):
-        dataset = dataset[benchmark.split]
-    else:
-        dataset = dataset['test'] if 'test' in dataset.keys() else dataset['train']
+
+    dataset = load_benchmark_dataset(benchmark)
 
     # REMOVER QUALQUER LINHA QUE TENHA NAN
     if hasattr(benchmark, 'important_columns'):
         dataset = dataset.filter(lambda x: all((x[col] is not None) and (x[col] != "") for col in benchmark.important_columns if col in x))
     else:
         dataset = dataset.filter(lambda x: all((x[col] is not None) and (x[col] != "") for col in x))
+
+    if args.use_percentage_dataset < 100:
+        total_samples = len(dataset)
+        num_samples = math.ceil(total_samples * args.use_percentage_dataset / 100)
+        selected_indices = list(range(min(num_samples, total_samples)))
+        dataset = dataset.select(selected_indices)
+        logging.info(f"Selected {len(dataset)} samples out of {total_samples} for {benchmark_name} ({args.use_percentage_dataset}% of dataset)")
 
     # dataset = dataset.select(list(range(15)))  # apenas para teste, depois tirar
     dataset = dataset.map(lambda example, idx: {"idx": int(idx)}, with_indices=True, desc="Adding index")
