@@ -26,6 +26,7 @@ RUN /opt/conda/bin/pip install bitsandbytes==0.45.5
 RUN /opt/conda/bin/pip install vllm==0.9.1
 RUN /opt/conda/bin/pip install accelerate==1.1.0
 RUN /opt/conda/bin/pip install flash-attn==2.7.3
+RUN /opt/conda/bin/pip install google-genai==1.50.1
 
 # COPY requirements.txt /app/
 # RUN pip install --upgrade pip && pip install -r requirements.txt
