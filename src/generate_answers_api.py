@@ -1,5 +1,5 @@
-# generate_answers_api.py
-
+from google import genai
+from google.genai.types import GenerateContentConfig, HttpOptions
 import argparse
 import logging
 import os
@@ -15,9 +15,7 @@ from huggingface_hub import list_datasets
 from logger_config import init_logger
 from utils import parse_answer, clean_index_columns
 
-# --------------------
-# Args
-# --------------------
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
@@ -59,9 +57,6 @@ parser.add_argument(
 args = parser.parse_args()
 init_logger()
 
-# --------------------
-# Regex extractors
-# --------------------
 SYSTEM_RE = re.compile(r"<system>\s*(.*?)\s*</system>", re.DOTALL | re.IGNORECASE)
 USER_RE   = re.compile(r"<user>\s*(.*?)\s*</user>",     re.DOTALL | re.IGNORECASE)
 
@@ -72,9 +67,7 @@ def extract_system_user(prompt: str) -> Tuple[str, str]:
     user   = m_usr.group(1).strip() if m_usr else ""
     return system, user
 
-# --------------------
-# Prompt selection
-# --------------------
+
 def get_prompt_for_model(prompt_json_str: str, model_path: str) -> str:
     try:
         prompt_data = json.loads(prompt_json_str)
@@ -85,15 +78,12 @@ def get_prompt_for_model(prompt_json_str: str, model_path: str) -> str:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in prompt cell: {e}")
 
-# --------------------
-# CSV cleaning (same behavior as vLLM path)
-# --------------------
+
 def clean_data_for_csv(df: pd.DataFrame) -> pd.DataFrame:
     def clean_text(text):
         if pd.isna(text):
             return text
         text = str(text)
-        # Double-escape unicode sequences and stray backslashes
         text = re.sub(r'\\([uU][0-9a-fA-F]{4})', r'\\\\\1', text)
         text = re.sub(r'\\([^uU])', r'\\\\\1', text)
         return text
@@ -110,12 +100,6 @@ def ensure_string_columns(ds: Dataset) -> Dataset:
             ds = ds.cast_column(col, "string")
     return ds
 
-# --------------------
-# Gemini client
-# --------------------
-from google import genai
-from google.genai.types import GenerateContentConfig, HttpOptions
-
 _genai_client = genai.Client()
 
 def generate_with_gemini(model: str, prompt_str: str, timeout_s: Optional[float] = None) -> str:
@@ -130,9 +114,7 @@ def generate_with_gemini(model: str, prompt_str: str, timeout_s: Optional[float]
 def generate_with_gemini_outlines(*_args, **_kwargs) -> str:
     raise NotImplementedError("Outlines not implemented for Gemini API yet.")
 
-# --------------------
-# Main
-# --------------------
+
 def main():
     if args.use_outlines:
         logging.warning("Outlines is not supported for API models. Proceeding with normal execution.")
