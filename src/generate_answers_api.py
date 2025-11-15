@@ -7,6 +7,8 @@ import json
 import re
 import csv
 from typing import Tuple, Optional
+# from dotenv import load_dotenv
+# load_dotenv()
 
 import pandas as pd
 from datasets import load_dataset, Dataset
@@ -14,7 +16,6 @@ from huggingface_hub import list_datasets
 
 from logger_config import init_logger
 from utils import parse_answer, clean_index_columns
-
 
 parser = argparse.ArgumentParser()
 
@@ -93,23 +94,38 @@ def clean_data_for_csv(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def ensure_string_columns(ds: Dataset) -> Dataset:
+    df = ds.to_pandas()
+
     target = ['model_answer','parsed_model_answer','label',
               'prompt','shot_indices','benchmark','model_name','id_bench','explanation']
-    for col in target:
-        if col in ds.column_names:
-            ds = ds.cast_column(col, "string")
-    return ds
 
-_genai_client = genai.Client()
+    for col in target:
+        if col in df.columns:
+            if col == 'shot_indices':
+                df[col] = df[col].apply(lambda x: json.dumps(x) if x is not None else None)
+            df[col] = df[col].astype(str)
+
+    return Dataset.from_pandas(df)
+
+api_key = os.getenv('GOOGLE_API_KEY')
+if not api_key:
+    logging.warning("GOOGLE_API_KEY environment variable not set!")
+_genai_client = genai.Client(api_key=api_key)
 
 def generate_with_gemini(model: str, prompt_str: str, timeout_s: Optional[float] = None) -> str:
-    system, user = extract_system_user(prompt_str)
-    cfg = GenerateContentConfig(system_instruction=[system] if system else None)
-    kwargs = dict(model=model, contents=user, config=cfg)
-    if timeout_s is not None:
-        kwargs["http_options"] = HttpOptions(timeout=timeout_s)
-    resp = _genai_client.models.generate_content(**kwargs)
-    return getattr(resp, "text", "")
+    try:
+        system, user = extract_system_user(prompt_str)
+        cfg = GenerateContentConfig(system_instruction=[system] if system else None)
+        kwargs = dict(model=model, contents=user, config=cfg)
+        if timeout_s is not None:
+            kwargs["http_options"] = HttpOptions(timeout=timeout_s)
+        raw_resp = _genai_client.models.generate_content(**kwargs)
+        text_result = raw_resp.candidates[0].content.parts[0].text
+        return text_result
+    except Exception as e:
+        error_msg = f"Gemini API error for model {model}: {e}"
+        logging.error(error_msg)
+        return f"__API_ERROR__: {error_msg}"
 
 def generate_with_gemini_outlines(*_args, **_kwargs) -> str:
     raise NotImplementedError("Outlines not implemented for Gemini API yet.")

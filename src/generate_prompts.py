@@ -48,6 +48,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--model_types",
+    type=str,
+    nargs='+',
+    required=True,
+    help="Model types for each model (instruct or base)"
+)
+
+parser.add_argument(
     "--prompts_path",
     type=str,
     required=True,
