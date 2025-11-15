@@ -5,6 +5,7 @@ echo "Starting..."
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 HF_TOKEN_EFF="${HUGGINGFACE_TOKEN:-${HUGGINGFACE_HUB_TOKEN:-${HF_TOKEN:-}}}"
+GOOGLE_API_KEY_EFF="${GOOGLE_API_KEY:-${GEMINI_API_KEY:-}}"
 
 if [ -f /.dockerenv ]; then
   # caminho antigo
@@ -21,6 +22,11 @@ if tok:
     HfFolder.save_token(tok)
 PY
 fi
+fi
+
+if [ -n "$GOOGLE_API_KEY_EFF" ]; then
+    export GOOGLE_API_KEY="$GOOGLE_API_KEY_EFF"
+    echo "Google API key configured"
 fi
 
 # -------------------------
@@ -61,6 +67,7 @@ echo "  RUN_LOCAL: $RUN_LOCAL"
 echo "  MODEL_PATHS: ${MODEL_PATHS[@]}"
 echo "  MODEL_CUSTOM_FLAGS: ${MODEL_CUSTOM_FLAGS[@]}"
 echo "  MODEL_TOKENIZERS: ${MODEL_TOKENIZERS[@]}"
+echo "  MODEL_TYPES: ${MODEL_TYPES[@]}"
 
 # -------------------------
 # Path Definitions
@@ -85,6 +92,7 @@ PROMPT_ARGS=(
   "--n_experiments" "${NUM_EXPERIMENTS}"
   "--model_paths" "${MODEL_PATHS[@]}"
   "--model_tokenizers" "${MODEL_TOKENIZERS[@]}"
+  "--model_types" "${MODEL_TYPES[@]}"
   "--benchmark_names" "${BENCHMARK_NAMES[@]}"
   "--prompts_path" "${PROMPTS_PATH}"
   "--use_percentage_dataset" "${USE_PERCENTAGE_DATASET}"
@@ -110,7 +118,6 @@ echo "Prompt generation completed. Outputs saved to '${PROMPTS_PATH}'"
 
 echo "Running answer generation..."
 
-# Sep models by local vs API
 API_MODELS=()
 LOCAL_MODELS=()
 for i in "${!MODEL_PATHS[@]}"; do
@@ -126,7 +133,6 @@ done
 echo "Local models: ${LOCAL_MODELS[*]:-(none)}"
 echo "API models:   ${API_MODELS[*]:-(none)}"
 
-# Base args used for local backends; we rebuild --model_path per-branch
 ANSWER_ARGS=(
   "--prompts_path" "${PROMPTS_PATH}"
   "--answers_path" "${ANSWERS_PATH}"

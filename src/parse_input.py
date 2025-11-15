@@ -13,14 +13,14 @@ def parse_yaml_config(yaml_file):
         raise FileNotFoundError(f"Configuration file '{yaml_file}' not found.")
     except yaml.YAMLError as e:
         raise ValueError(f"Error parsing YAML file: {e}")
-    
+
     return config or {}
 
 def get_base_model_from_hf(model_path):
     try:
         api = HfApi()
         info = api.model_info(model_path)
-        
+
         if info.card_data and info.card_data.get('base_model'):
             base_spec = info.card_data.get('base_model')
             if isinstance(base_spec, list) and base_spec:
@@ -29,22 +29,22 @@ def get_base_model_from_hf(model_path):
                 return base_spec
     except Exception as e:
         warnings.warn(f"Could not get base model for {model_path}: {e}")
-    
+
     return None
 
 def determine_tokenizer_for_model(model_config):
     model_path = model_config['path']
     if 'tokenizer_path' in model_config and model_config['tokenizer_path']:
         return model_config['tokenizer_path']
-    
+
     # TODO: Buscar pelo base_model não é interessante pq o modelo pode ser base sem chat_template
     # base_model = get_base_model_from_hf(model_path)
     # if base_model and base_model != model_path:
     #     return base_model
-    
+
     return model_path
 
-def get_config_with_defaults(yaml_config):    
+def get_config_with_defaults(yaml_config):
     defaults = {
         'num_shots': 5,
         'num_experiments': 3,
@@ -72,47 +72,53 @@ def get_config_with_defaults(yaml_config):
             "oab"
         ]
     }
-    
+
     required_fields = ['run_id', 'model_paths']
-    
+
     config = defaults.copy()
     config.update(yaml_config)
 
     valid_backends = ['hf', 'vllm']
     if config['backend'] not in valid_backends:
         raise ValueError(f"'backend' must be one of {valid_backends}, got: {config['backend']}")
-    
+
     if not isinstance(config.get('multi_gpu'), dict):
         raise ValueError("'multi_gpu' must be a dictionary with 'enabled' and 'num_gpus' fields")
-    
+
     config['multi_gpu'].setdefault('enabled', False)
     config['multi_gpu'].setdefault('num_gpus', 1)
     config['multi_gpu'].setdefault('mode', 'tensor')
-    
+
     missing_fields = [field for field in required_fields if field not in config or config[field] is None]
     if missing_fields:
         raise ValueError(f"Missing required fields in configuration: {missing_fields}")
-    
+
     if not isinstance(config['model_paths'], list) or len(config['model_paths']) == 0:
         raise ValueError("'model_paths' must be a non-empty list")
-    
+
     processed_model_paths = []
     for model in config['model_paths']:
         if isinstance(model, str):
-            model_config = {'path': model, 'custom': False}
+            model_config = {'path': model, 'custom': False, 'model_type': 'instruct'}
         elif isinstance(model, dict):
             if 'path' not in model:
                 raise ValueError("Model dict must contain 'path' field")
             model_config = model.copy()
             model_config.setdefault('custom', False)
+            model_config.setdefault('model_type', 'instruct')
         else:
             raise ValueError("Model paths must be strings or dicts with 'path' field")
-        
+
         model_config['tokenizer_path'] = determine_tokenizer_for_model(model_config)
         processed_model_paths.append(model_config)
-    
+
+    valid_model_types = ['instruct', 'base']
+    for model_config in processed_model_paths:
+        if model_config.get('model_type') not in valid_model_types:
+            raise ValueError(f"'model_type' must be one of {valid_model_types}, got: {model_config.get('model_type')}")
+
     config['model_paths'] = processed_model_paths
-    
+
     if not isinstance(config['benchmark_names'], list) or len(config['benchmark_names']) == 0:
         raise ValueError("'benchmark_names' must be a non-empty list")
 
@@ -121,13 +127,13 @@ def get_config_with_defaults(yaml_config):
 
     return config
 
-def generate_bash_variables(config):    
+def generate_bash_variables(config):
     bash_vars = []
-    
+
     bash_vars.append(f'NUM_SHOTS={config["num_shots"]}')
     bash_vars.append(f'NUM_EXPERIMENTS={config["num_experiments"]}')
     bash_vars.append(f'RUN_ID="{config["run_id"]}"')
-    bash_vars.append(f'BACKEND="{config["backend"]}"')  # Add backend variable
+    bash_vars.append(f'BACKEND="{config["backend"]}"')
     bash_vars.append(f'USE_OUTLINES={str(config.get("use_outlines", False)).lower()}')
     bash_vars.append(f'MAX_NEW_TOKENS={config.get("max_new_tokens", 4)}')
     bash_vars.append(f'BATCH_SIZE={config.get("batch_size", 32)}')
@@ -135,30 +141,35 @@ def generate_bash_variables(config):
     bash_vars.append(f'MULTI_GPU_ENABLED={str(config["multi_gpu"]["enabled"]).lower()}')
     bash_vars.append(f'MULTI_GPU_NUM_GPUS={config["multi_gpu"]["num_gpus"]}')
     bash_vars.append(f'MULTI_GPU_MODE="{config["multi_gpu"]["mode"]}"')
-    bash_vars.append(f'FLASH_ATTENTION_ENABLED={str(config["flash_attention"]).lower()}')  # Add flash attention variable
+    bash_vars.append(f'FLASH_ATTENTION_ENABLED={str(config["flash_attention"]).lower()}')
     bash_vars.append(f'UPDATE_LEADERBOARD={str(config["update_leaderboard"]).lower()}')
     bash_vars.append(f'RUN_LOCAL={str(config["run_local"]).lower()}')
     bash_vars.append('MODEL_PATHS=(')
     for model in config['model_paths']:
         bash_vars.append(f'  "{model["path"]}"')
     bash_vars.append(')')
-    
+
     bash_vars.append('MODEL_CUSTOM_FLAGS=(')
     for model in config['model_paths']:
         bash_vars.append(f'  {str(model["custom"]).lower()}')
     bash_vars.append(')')
-    
+
     bash_vars.append('MODEL_TOKENIZERS=(')
     for model in config['model_paths']:
         bash_vars.append(f'  "{model["tokenizer_path"]}"')
     bash_vars.append(')')
-    
+
+    bash_vars.append('MODEL_TYPES=(')
+    for model in config['model_paths']:
+        bash_vars.append(f'  "{model["model_type"]}"')
+    bash_vars.append(')')
+
     bash_vars.append('')
     bash_vars.append('BENCHMARK_NAMES=(')
     for benchmark in config['benchmark_names']:
         bash_vars.append(f'  "{benchmark}"')
     bash_vars.append(')')
-    
+
     return '\n'.join(bash_vars)
 
 def main():
@@ -166,10 +177,10 @@ def main():
     parser.add_argument('config_file')
     args = parser.parse_args()
     # init_logger()
-    
+
     yaml_config = parse_yaml_config(args.config_file)
     config = get_config_with_defaults(yaml_config)
-    
+
     bash_output = generate_bash_variables(config)
     print(bash_output)
 
