@@ -92,7 +92,8 @@ benchmark_names:
 ### 1. Escolha o dockerfile com base no Cuda [11.8 ou 12.9]
 **Build**: `docker build -f .devcontainer/Dockerfile_cuda118 -t energygpt-eval .`
 
-**Run**: `
+**Run**: 
+```bash
 
 # 1. Inserir HUGGINGFACE_TOKEN
 # 2. Inserir arquivo config.yaml manter path interno: /src/config.yaml
@@ -101,7 +102,7 @@ docker run --rm --gpus=all -e HUGGINGFACE_TOKEN=hf_Kkg..... \
   -v "$PWD/config_ext.yaml":/workspace/src/config.yaml \ 
   -v $PWD/.cache:/cache/hf energygpt-eval
 
-`
+```
 
 Obs: No dockerfile, a imagem base do pytorch que está sendo usada usa o CUDA 12.1 por causa da 4090. Se tiver algum problema de build, utilize uma imagem do pytorch differente
 
