@@ -2,27 +2,21 @@
 run_id: "my_run"
 backend: "vllm"
 model_paths:
-  # - path: "adalberto-temp/Llama_3.2_3B_DPO_V0.1"
-  #   custom: false
-  #   tokenizer_path: "adalberto-temp/Llama_3.2_3B_DPO_V0.1"
-  # - path: "adalberto-temp/Llama_3.2_3B_DPO_V0.2"
-  #   custom: false
-  #   tokenizer_path: "adalberto-temp/Llama_3.2_3B_DPO_V0.2"
   # - path: "meta-llama/Llama-3.2-3B-Instruct"
   #   custom: false
   #   tokenizer_path: "meta-llama/Llama-3.2-3B-Instruct"
   - path: "Qwen/Qwen3-4B-Instruct-2507"
     custom: false
     tokenizer_path: "Qwen/Qwen3-4B-Instruct-2507"
+    model_type: "instruct"
+  # - path: "Qwen/Qwen3-4B-Base"
+  #   custom: false
+  #   tokenizer_path: "Qwen/Qwen3-4B-Base"
+  #   model_type: "base"
   # - path: "gemini-2.5-flash-lite"
   #   custom: false
   #   tokenizer_path: "api"
-  # - path: "/workspace/dpo/training/models/Llama-3.2-3B-DPO-V0.1-Llama-Ref"
-  #   custom: false
-  #   tokenizer_path: "/workspace/dpo/training/models/Llama-3.2-3B-DPO-V0.1-Llama-Ref"
-  # - path: "/workspace/dpo/training/models/Llama-3.2-3B-DPO-V0.1-Llama-Ref-1e-5"
-  #   custom: false
-  #   tokenizer_path: "/workspace/dpo/training/models/Llama-3.2-3B-DPO-V0.1-Llama-Ref-1e-5"
+  #   model_type: "instruct"
 
 # Campos opcionais (Parâmetros do script)
 multi_gpu:
