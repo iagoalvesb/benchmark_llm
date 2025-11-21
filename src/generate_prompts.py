@@ -98,14 +98,24 @@ parser.add_argument(
 args = parser.parse_args()
 init_logger()
 
-tokenizer_to_models = {}
-for model_path, tokenizer_path in zip(args.model_paths, args.model_tokenizers):
-    if tokenizer_path not in tokenizer_to_models:
-        tokenizer_to_models[tokenizer_path] = []
-    tokenizer_to_models[tokenizer_path].append(model_path)
+if args.use_outlines:
+    for model_path, model_type in zip(args.model_paths, args.model_types):
+        if model_type == 'base':
+            raise ValueError(
+                f"Error: Modelos base não podem usar o outlines. Modelo '{model_path}' é um modelo base.\n"
+                f"Faça um dos seguintes:\n"
+                f"  1. Deixe use_outlines como false no seu config (recomendado de qualquer forma, tem alguns bugs com o outlines), ou\n"
+                f"  2. Mude o model_type para 'instruct' se este modelo suporta chat templates"
+            )
+
+tokenizer_to_model_info = {}
+for model_path, tokenizer_path, model_type in zip(args.model_paths, args.model_tokenizers, args.model_types):
+    if tokenizer_path not in tokenizer_to_model_info:
+        tokenizer_to_model_info[tokenizer_path] = {'instruct': [], 'base': []}
+    tokenizer_to_model_info[tokenizer_path][model_type].append(model_path)
 
 tokenizers = {}
-for tokenizer_path in tokenizer_to_models.keys():
+for tokenizer_path in tokenizer_to_model_info.keys():
     if tokenizer_path == "api":
         continue
     tok = AutoTokenizer.from_pretrained(tokenizer_path)
@@ -133,6 +143,19 @@ def build_outlines_instruction(benchmark_obj) -> str:
         spec = "Para 'resposta', forneça apenas o valor final esperado para o benchmark."
     example = "Exemplo: {\"explicacao\": \"...\", \"resposta\": \"...\"}"
     return base + spec + "\n" + example
+
+def build_raw_text_prompt(chat, use_outlines=False):
+    """
+    Prompt seco para modelo base sem chat templates.
+    """
+    parts = []
+    for msg in chat:
+        role = msg['role'].capitalize()
+        content = msg['content']
+        if content:
+            parts.append(f"{role}: {content}")
+    
+    return "\n\n".join(parts)
 
 def get_shots(id_query, dataset_fewshot, n_shots=args.n_shots, use_fixed_seed=args.use_fixed_seed, seed=42):
     if n_shots == 0:
@@ -185,7 +208,7 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
 
         # Generate prompts for each unique tokenizer
         prompt_dict = {}
-        for tokenizer_path in tokenizer_to_models.keys():
+        for tokenizer_path in tokenizer_to_model_info.keys():
             if tokenizer_path == "api":
                 user_text, assistant_hint = build_api_user_block(
                     benchmark, shots, example_informations, args.use_outlines
@@ -198,25 +221,38 @@ def get_prompt(example, benchmark, dataset_benchmark, n_shots=args.n_shots, n_ex
                     parts.append(f"<assistant>{_escape_xml(assistant_hint)}</assistant>")
                 raw_prompt = "\n".join(parts)
 
+                # All API models get the same prompt
+                all_api_models = tokenizer_to_model_info[tokenizer_path]['instruct'] + tokenizer_to_model_info[tokenizer_path]['base']
                 prompt_dict[tokenizer_path] = {
                     "prompt": raw_prompt,
-                    "models": tokenizer_to_models[tokenizer_path],
+                    "models": all_api_models,
                 }
                 continue
 
             tokenizer = tokenizers[tokenizer_path]
-            if args.use_outlines:
-                rendered = tokenizer.apply_chat_template(
-                    chat, tokenize=False, add_generation_prompt=True
-                )
-            else:
-                rendered = tokenizer.apply_chat_template(
-                    chat, tokenize=False, continue_final_message=True
-                )
-            prompt_dict[tokenizer_path] = {
-                "prompt": rendered,
-                "models": tokenizer_to_models[tokenizer_path],
-            }
+            
+            instruct_models = tokenizer_to_model_info[tokenizer_path]['instruct']
+            if instruct_models:
+                if args.use_outlines:
+                    rendered = tokenizer.apply_chat_template(
+                        chat, tokenize=False, add_generation_prompt=True
+                    )
+                else:
+                    rendered = tokenizer.apply_chat_template(
+                        chat, tokenize=False, continue_final_message=True
+                    )
+                prompt_dict[f"{tokenizer_path}_instruct"] = {
+                    "prompt": rendered,
+                    "models": instruct_models,
+                }
+            
+            base_models = tokenizer_to_model_info[tokenizer_path]['base']
+            if base_models:
+                raw_prompt = build_raw_text_prompt(chat, args.use_outlines)
+                prompt_dict[f"{tokenizer_path}_base"] = {
+                    "prompt": raw_prompt,
+                    "models": base_models,
+                }
 
         example[f"prompt_{i}"] = json.dumps(prompt_dict, ensure_ascii=False)
         example[f"shot_indices_{i}"] = shot_id_benches
