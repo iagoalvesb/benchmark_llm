@@ -843,3 +843,56 @@ BENCHMARKS_INFORMATIONS = {
     "include": include(),
     "mmmlu": mmmlu(),
     }
+
+if __name__ == "__main__":
+
+    # Dei add nisso para verificar a estrutura de datasets sem ter que rodar alguma coisa
+    # Ex: python src/UTILS_BENCHMARKS.py assin2rte assin2sts bluex enem hatebr portuguese_hate_speech toxsyn_pt faquad tweetsentbr oab poscomp energy_regulacao aime24 aime25 mmlu mmlu_en mmlu_hard mmlu_redux_en mmlu_pro_en supergpqa supergpqa_en include mmmlu
+    import argparse
+    from datasets import load_dataset
+
+    parser = argparse.ArgumentParser(description='Inspect benchmark datasets and test prompt structures')
+    parser.add_argument(
+        'datasets',
+        nargs='*',
+        default=['aime25', 'mmlu'],
+        help='Dataset names to inspect (default: aime25 mmlu)'
+    )
+
+    args = parser.parse_args()
+
+    for dataset_name in args.datasets:
+        if dataset_name not in BENCHMARKS_INFORMATIONS:
+            print(f"Dataset {dataset_name} not found")
+            continue
+
+        benchmark = BENCHMARKS_INFORMATIONS[dataset_name]
+        print(f"\n================= {dataset_name.upper()} =================")
+        print(f"Path: {benchmark.dataset_path}")
+        print(f"Subset: {benchmark.subset}")
+        print(f"Split: {benchmark.split}")
+        print(f"Label column: {benchmark.label_column}")
+        print(f"Important columns: {benchmark.important_columns}")
+
+        try:
+            dataset = load_dataset(benchmark.dataset_path, benchmark.subset)[benchmark.split]
+            if len(dataset) > 0:
+                real_sample = dataset[0]
+                if benchmark.label_column != "label":
+                    real_sample = {k: v for k, v in real_sample.items()}
+                    if benchmark.label_column in real_sample:
+                        real_sample["label"] = real_sample.pop(benchmark.label_column)
+                prompt_info = benchmark.get_prompt_informations(real_sample)
+
+                print("System Prompt:")
+                print(prompt_info['base_system_message'])
+                print("\nUser Message:")
+                print(prompt_info['user_message'])
+                print("\nAssistant Message (with answer):")
+                print(prompt_info['assistant_message_with_answer'])
+                print("\nAssistant Message (without answer):")
+                print(prompt_info['assistant_message_without_answer'])
+                print("\n")
+
+        except Exception as e:
+            print(f"Error inspecting {dataset_name}: {e}")
