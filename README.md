@@ -68,6 +68,11 @@ benchmark_names:
     - mmlu_redux
     - mmlu_pro
     - supergpqa
+
+use_outlines: false   # Se deveria usar a lib outlines para deixar o modelo gerar respostas mais fieis ao que seriam geradas em situações reais. (Apresenta alguns problemas)
+max_new_tokens: 4096  # Quantidade de tokens que podem ser gerados (Relevante para o use_outlines, sem outlines forçamos apenas 3)
+batch_size: 128
+use_percentage_dataset: 100 # Porcentagem total dos dados para usar.
 ```
 
 
@@ -98,16 +103,14 @@ benchmark_names:
 # 1. Inserir HUGGINGFACE_TOKEN
 # 2. Inserir arquivo config.yaml manter path interno: /src/config.yaml
 # 3. Desejavel especificar cache dir inteiro para /cache
-docker run --rm --gpus=all -e HUGGINGFACE_TOKEN=hf_Kkg..... \ 
-  -v "$PWD/config_ext.yaml":/workspace/src/config.yaml \ 
-  -v $PWD/.cache:/cache/hf energygpt-eval
+docker run --rm --gpus=all \                                                            
+  -e HUGGINGFACE_TOKEN=hf_ \
+  -v "$PWD/yaml/config.yaml":/workspace/src/config.yaml \
+  -v "$PWD/.cache:/cache/hf" \
+  energygpt-eval
 
 ```
 
 Obs: No dockerfile, a imagem base do pytorch que está sendo usada usa o CUDA 12.1 por causa da 4090. Se tiver algum problema de build, utilize uma imagem do pytorch differente
 
-
-### Problemas a serem resolvidos
-
-- Backend "vllm" pode dar resultados levemente diferentes se processado online (hf datasets) vs local (pandas csv).
 
