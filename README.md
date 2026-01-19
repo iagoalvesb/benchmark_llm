@@ -113,4 +113,15 @@ docker run --rm --gpus=all \
 
 Obs: No dockerfile, a imagem base do pytorch que está sendo usada usa o CUDA 12.1 por causa da 4090. Se tiver algum problema de build, utilize uma imagem do pytorch differente
 
+## Rodando versão com API
+Se quiser rodar com API, é necessário passar a chave ao rodar o docker:
 
+```bash
+docker run --rm --gpus=all \
+  -e HUGGINGFACE_TOKEN=hf_ \
+  -e OPENAI_API_KEY=sk-your-key-here \
+  -e GOOGLE_API_KEY=your-google-key-here \
+  -v "$PWD/yaml/config.yaml":/workspace/src/config.yaml \
+  -v "$PWD/.cache:/cache/hf" \
+  energygpt-eval
+```

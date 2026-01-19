@@ -5,3 +5,4 @@ eval_processing/
 test_dir/
 yaml/config_*.yaml
 .cache/
+commands.txt
