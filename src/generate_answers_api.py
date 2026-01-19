@@ -1,5 +1,6 @@
 from google import genai
 from google.genai.types import GenerateContentConfig, HttpOptions
+from openai import OpenAI
 import argparse
 import logging
 import os
@@ -107,19 +108,37 @@ def ensure_string_columns(ds: Dataset) -> Dataset:
 
     return Dataset.from_pandas(df)
 
-api_key = os.getenv('GOOGLE_API_KEY')
-if not api_key:
-    logging.warning("GOOGLE_API_KEY environment variable not set!")
-_genai_client = genai.Client(api_key=api_key)
+# Usar global nn é muito ideal, mas é a forma mais clean de fazer isso
+_genai_client = None
+_openai_client = None
+
+def get_genai_client():
+    global _genai_client
+    if _genai_client is None:
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable not set!")
+        _genai_client = genai.Client(api_key=api_key)
+    return _genai_client
+
+def get_openai_client():
+    global _openai_client
+    if _openai_client is None:
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable not set!")
+        _openai_client = OpenAI(api_key=api_key)
+    return _openai_client
 
 def generate_with_gemini(model: str, prompt_str: str, timeout_s: Optional[float] = None) -> str:
     try:
+        client = get_genai_client()
         system, user = extract_system_user(prompt_str)
         cfg = GenerateContentConfig(system_instruction=[system] if system else None)
         kwargs = dict(model=model, contents=user, config=cfg)
         if timeout_s is not None:
             kwargs["http_options"] = HttpOptions(timeout=timeout_s)
-        raw_resp = _genai_client.models.generate_content(**kwargs)
+        raw_resp = client.models.generate_content(**kwargs)
         text_result = raw_resp.candidates[0].content.parts[0].text
         return text_result
     except Exception as e:
@@ -129,6 +148,31 @@ def generate_with_gemini(model: str, prompt_str: str, timeout_s: Optional[float]
 
 def generate_with_gemini_outlines(*_args, **_kwargs) -> str:
     raise NotImplementedError("Outlines not implemented for Gemini API yet.")
+
+
+def generate_with_openai(model: str, prompt_str: str, timeout_s: Optional[float] = None) -> str:
+    try:
+        client = get_openai_client()
+        system, user = extract_system_user(prompt_str)
+        messages = []
+        if system:
+            messages.append({"role": "developer", "content": system})
+        messages.append({"role": "user", "content": user})
+        
+        kwargs = dict(model=model, messages=messages)
+        if timeout_s is not None:
+            kwargs["timeout"] = timeout_s
+        
+        response = client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content
+    except Exception as e:
+        error_msg = f"OpenAI API error for model {model}: {e}"
+        logging.error(error_msg)
+        return f"__API_ERROR__: {error_msg}"
+
+
+def generate_with_openai_outlines(*_args, **_kwargs) -> str:
+    raise NotImplementedError("Outlines not implemented for OpenAI API yet.")
 
 
 def main():
@@ -159,8 +203,15 @@ def main():
 
         def map_one(example):
             ptxt = get_prompt_for_model(example["prompt"], model_path)
+
+            # Solução porca para um caralho mas eu precisava terminar isso em 1 hora, quando refatorar precisa melhorar isso aqui
             try:
-                ans = generate_with_gemini(model_path, ptxt, timeout_s=None)
+                if "gpt" in model_path.lower():
+                    ans = generate_with_openai(model_path, ptxt, timeout_s=None)
+                elif "gemini" in model_path.lower():
+                    ans = generate_with_gemini(model_path, ptxt, timeout_s=None)
+                else:
+                    ans = f"__API_ERROR__: Unknown API provider for model {model_path}"
             except Exception as e:
                 ans = f"__API_ERROR__: {e}"
 

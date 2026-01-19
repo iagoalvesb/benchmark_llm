@@ -13,3 +13,5 @@ accelerate==1.1.0
 flash-attn==2.8.0.post2
 outlines>=0.0.45
 pydantic>=2.5.0
+openai==2.15.0
+google-genai==1.50.1
